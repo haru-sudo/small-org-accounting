@@ -662,6 +662,7 @@ function aiExecTool(string $name, array $in, array $user): array {
                 if (!$visible) return ['fiscal_year' => (int)$year, 'note' => 'この年度の決算書はまだ公開されていません。'];
                 $k['sections'] = stripHiddenMonths($k['sections'], $visible);
                 foreach (['net', 'monthly_balance'] as $key) $k[$key] = stripHiddenMonths([$k[$key]], $visible)[0];
+                $k['balance_breakdown'] = stripHiddenMonths($k['balance_breakdown'] ?? [], $visible);
                 foreach ($k['sections'] as &$sec) $sec['total'] = stripHiddenMonths([$sec['total']], $visible)[0];
                 unset($sec);
             }
@@ -682,7 +683,9 @@ function aiExecTool(string $name, array $in, array $user): array {
             }
             return ['fiscal_year' => (int)$year, 'sections' => $sections,
                     'opening_balance' => $k['opening_balance'], 'net' => $nz($k['net']),
-                    'monthly_balance' => $k['monthly_balance']]
+                    'monthly_balance' => $k['monthly_balance'],
+                    'balance_note' => '期末残高（monthly_balance）は資産科目の月末残高の合計で、立替金（未精算の立替）は含まない',
+                    'balance_breakdown' => array_map(fn($r) => ['name' => $r['name'], 'monthly' => $r['monthly']], $k['balance_breakdown'] ?? [])]
                 + ($viewer ? ['published_months' => getPublishedMonths($year)] : []);
         }
         case 'list_claims': {

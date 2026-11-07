@@ -214,21 +214,25 @@ def calc_kessan(txs, year, only=None):
 
     net = {k: inc_t[k] - exp_t.get(k, 0) for k in inc_t}
 
-    # 期首残高は口座ごとの dict（{"普通預金 / 銀行名": 金額, ...}）の場合と
-    # 単一の数値の場合がある。画面側(reports.js)と同じく dict は合計して使う。
-    ob_raw = 0 if only is not None else ((settings.get('opening_balances') or {}).get(str(year), 0) or 0)
-    if isinstance(ob_raw, dict):
-        ob = sum(int(v or 0) for v in ob_raw.values())
+    if only is not None:
+        # 別表: 期首残高は 0 として、収支の累計だけを出す
+        ob = 0
+        breakdown = []
+        running = 0
+        mb = {}
+        for mk in MONTHS:
+            running += net.get(mk, 0)
+            mb[mk] = running
+        mb['上半期'] = net.get('上半期', 0)
+        mb['下半期'] = mb['年度合計'] = net.get('年度合計', 0)
     else:
-        ob = int(ob_raw)
-    running = ob
-    mb = {}
-    for mk in MONTHS:
-        running += net.get(mk, 0)
-        mb[mk] = running
-    mb['上半期']   = ob + net.get('上半期', 0)
-    mb['下半期']   = mb.get(HALF1[-1], ob + net.get('上半期', 0)) + net.get('下半期', 0)
-    mb['年度合計'] = ob + net.get('年度合計', 0)
+        # 期末残高は資産科目（立替金を除く）の月末残高の合計（core/accounting.php と同じ）
+        breakdown = calc_balance_breakdown(filtered, tx_months, str(year), accounts, settings)
+        ob = sum(r['opening'] for r in breakdown)
+        mb = _empty_m()
+        for r in breakdown:
+            for k, v in r['monthly'].items():
+                mb[k] += v
 
     return {
         'sections': [
@@ -238,7 +242,89 @@ def calc_kessan(txs, year, only=None):
         'net': net,
         'opening_balance': ob,
         'monthly_balance': mb,
+        'balance_breakdown': breakdown,
     }
+
+
+def balance_excluded_accounts(settings):
+    """期末残高に入れない資産科目（core/accounting.php の balanceExcludedAccounts と同じ）。"""
+    out = ['立替金']
+    adv = str(settings.get('advance_debit') or '').strip()
+    if adv and adv not in out:
+        out.append(adv)
+    return out
+
+
+def opening_balance_map(settings, year):
+    """期首残高を「科目」「科目/補助」→金額 にそろえる（旧形式の数値は普通預金）。"""
+    raw = (settings.get('opening_balances') or {}).get(str(year), 0) or 0
+    if not isinstance(raw, dict):
+        return {'普通預金': int(raw)} if raw else {}
+    out = {}
+    for k, v in raw.items():
+        k = re.sub(r'\s*/\s*', '/', str(k).strip())
+        out[k] = out.get(k, 0) + int(v or 0)
+    return out
+
+
+def calc_balance_breakdown(filtered, tx_months, year, accounts, settings):
+    """期末残高の内訳（core/accounting.php の calcBalanceBreakdown と同じ）。"""
+    excluded = balance_excluded_accounts(settings)
+    ob_map = opening_balance_map(settings, year)
+
+    def to_bal(ob, delta):
+        bal, run = {}, ob
+        for mk in MONTHS:
+            run += delta.get(mk, 0)
+            bal[mk] = run
+        bal['上半期'] = bal[MONTHS[5]]
+        bal['下半期'] = bal['年度合計'] = bal[MONTHS[11]]
+        return bal
+
+    rows = []
+    for ac in accounts.get('assets', []) or []:
+        name = str(ac.get('name') or '')
+        if not name or name in excluded:
+            continue
+        subs = [str(s.get('name') or '') for s in (ac.get('sub') or []) if s.get('name')]
+        delta = {sk: {m: 0 for m in MONTHS} for sk in [''] + subs}
+        for i, tx in enumerate(filtered):
+            mk = tx_months[i]
+            if not mk:
+                continue
+            for e in tx.get('entries', []):
+                amt = int(e.get('amount', 0) or 0)
+                if not amt:
+                    continue
+                if e.get('debit_account') == name:
+                    sk = e.get('debit_sub') or ''
+                    delta[sk if sk in subs else ''][mk] += amt
+                if e.get('credit_account') == name:
+                    sk = e.get('credit_sub') or ''
+                    delta[sk if sk in subs else ''][mk] -= amt
+        ob = {sk: 0 for sk in [''] + subs}
+        for k, v in ob_map.items():
+            if k == name:
+                ob[''] += v
+            elif k.startswith(name + '/'):
+                sn = k[len(name) + 1:]
+                ob[sn if sn in subs else ''] += v
+
+        is_cash = bool(re.search(r'現金|預金', name))
+        for sk in (subs + [''] if subs else ['']):
+            nonzero = ob[sk] != 0 or any(delta[sk].values())
+            if subs and sk == '' and not nonzero:
+                continue
+            if not is_cash and not nonzero:
+                continue
+            rows.append({
+                'account': name,
+                'sub': sk or None,
+                'name': sk if sk else (f'{name}（補助科目なし）' if subs else name),
+                'opening': ob[sk],
+                'monthly': to_bal(ob[sk], delta[sk]),
+            })
+    return rows
 
 
 def build_account_ledger_summary(txs):

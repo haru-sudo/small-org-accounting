@@ -78,7 +78,7 @@ function aiAppToolDefs(): array {
         ],
         [
             'name' => 'get_dashboard',
-            'description' => 'ダッシュボード。会計年度の収入合計・支出合計・収支差額・期末残高（推計）・未登録と仮登録の件数、申請の未処理件数、請求シートの未入金、最近の取り込みをまとめて返す。',
+            'description' => 'ダッシュボード。会計年度の収入合計・支出合計・収支差額・期末残高（推計。資産科目の残高の合計で、立替金は含まない）・未登録と仮登録の件数、申請の未処理件数、請求シートの未入金、最近の取り込みをまとめて返す。',
             'input_schema' => $obj(['year' => $int('会計年度（省略で今の年度）')]),
         ],
         [
@@ -754,7 +754,10 @@ function aiAppGetDashboard(array $in): array {
     }
     foreach ($byAccount as &$m) arsort($m);
     unset($m);
-    $ob = array_sum(aiAppOpeningMap($year));
+    // 期末残高は決算書と同じく、資産科目（立替金を除く）の残高の合計
+    $k = calcKessan(getTransactionsByFy($year, $fs, true), $year);
+    $ob = $k['opening_balance'];
+    $closing = $k['monthly_balance']['年度合計'] ?? 0;
     $claims = getAllClaims();
     $cnt = fn(callable $f) => count(array_filter($claims, $f));
     $sheets = [];
@@ -767,7 +770,7 @@ function aiAppGetDashboard(array $in): array {
     return [
         'fiscal_year' => (int)$year,
         'income_total' => $tIn, 'expense_total' => $tOut, 'net' => $tIn - $tOut,
-        'opening_balance' => $ob, 'estimated_closing_balance' => $ob + $tIn - $tOut,
+        'opening_balance' => $ob, 'estimated_closing_balance' => $closing,
         'top_income' => array_slice($byAccount['income'] ?? [], 0, 8, true),
         'top_expense' => array_slice($byAccount['expense'] ?? [], 0, 8, true),
         'unregistered_count' => $unreg, 'provisional_count' => $prov,

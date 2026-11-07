@@ -542,19 +542,22 @@ function calcKessan(array $txs, string $year, ?array $only = null): array {
     $net = [];
     foreach ($incT as $k => $v) $net[$k] = $v - ($expT[$k] ?? 0);
 
-    // 後方互換: 数値なら普通預金として扱い、配列なら全科目合計を期首残高とする
-    $obRaw   = $only !== null ? 0 : ($settings['opening_balances'][(string)$year] ?? 0);
-    if (is_array($obRaw)) {
-        $obVal = array_sum(array_values($obRaw));
+    if ($only !== null) {
+        // 別表: 期首残高は 0 として、収支の累計だけを出す
+        $obVal = 0;
+        $breakdown = [];
+        $running = 0;
+        $mb = [];
+        foreach (fyMonths() as $mk) { $running += $net[$mk] ?? 0; $mb[$mk] = $running; }
+        $mb['上半期']   = $net['上半期'] ?? 0;
+        $mb['下半期']   = $mb['年度合計'] = $net['年度合計'] ?? 0;
     } else {
-        $obVal = (int)($obRaw ?: 0);
+        // 期末残高は資産科目（立替金を除く）の月末残高の合計。内訳も一緒に返す
+        $breakdown = calcBalanceBreakdown($filtered, $txMonths, (string)$year, $accounts, $settings);
+        $obVal = array_sum(array_column($breakdown, 'opening'));
+        $mb = emptyM();
+        foreach ($breakdown as $row) foreach ($row['monthly'] as $k => $v) $mb[$k] += $v;
     }
-    $running = $obVal;
-    $mb = [];
-    foreach (fyMonths() as $mk) { $running += $net[$mk] ?? 0; $mb[$mk] = $running; }
-    $mb['上半期']   = $obVal + ($net['上半期']   ?? 0);
-    $mb['下半期']   = ($mb[fyHalf1()[5]] ?? ($obVal + ($net['上半期'] ?? 0))) + ($net['下半期'] ?? 0);
-    $mb['年度合計'] = $obVal + ($net['年度合計'] ?? 0);
 
     return [
         'sections'        => [
@@ -564,7 +567,103 @@ function calcKessan(array $txs, string $year, ?array $only = null): array {
         'net'             => $net,
         'opening_balance' => $obVal,
         'monthly_balance' => $mb,
+        'balance_breakdown' => $breakdown,
     ];
+}
+
+/**
+ * 期末残高に入れない資産科目。立替金は団体のお金ではなく、精算を待っている立替なので除く
+ * （申請の設定で立替の借方を別の資産科目にしている場合はその科目も）。
+ */
+function balanceExcludedAccounts(?array $settings = null): array {
+    $settings ??= kvGet('settings', []);
+    $out = ['立替金'];
+    $adv = trim((string)($settings['advance_debit'] ?? ''));
+    if ($adv !== '' && !in_array($adv, $out, true)) $out[] = $adv;
+    return $out;
+}
+
+/** 期首残高の設定を「科目」「科目/補助」→金額 にそろえる（旧形式の数値は普通預金） */
+function openingBalanceMap(array $settings, string $year): array {
+    $raw = $settings['opening_balances'][$year] ?? 0;
+    if (!is_array($raw)) return $raw ? ['普通預金' => (int)$raw] : [];
+    $out = [];
+    foreach ($raw as $k => $v) {
+        $k = preg_replace('#\s*/\s*#u', '/', trim((string)$k));
+        $out[$k] = ($out[$k] ?? 0) + (int)$v;
+    }
+    return $out;
+}
+
+/**
+ * 決算書の期末残高の内訳。資産科目（立替金を除く）ごとの各月末残高。
+ * 補助科目がある科目は補助科目ごとに分ける（例: 普通預金 → 三井住友・みずほ）。
+ * 現金・預金の科目は 0 でも出し、それ以外（前払金など）は残高があるときだけ出す。
+ * @return array<int, array{account:string, sub:?string, name:string, opening:int, monthly:array}>
+ */
+function calcBalanceBreakdown(array $filtered, array $txMonths, string $year, array $accounts, array $settings): array {
+    $excluded = balanceExcludedAccounts($settings);
+    $obMap    = openingBalanceMap($settings, $year);
+    $months   = fyMonths();
+    $toBal = function (int $ob, array $delta) use ($months): array {
+        $bal = []; $run = $ob;
+        foreach ($months as $mk) { $run += $delta[$mk] ?? 0; $bal[$mk] = $run; }
+        $bal['上半期']   = $bal[$months[5]];
+        $bal['下半期']   = $bal[$months[11]];
+        $bal['年度合計'] = $bal[$months[11]];
+        return $bal;
+    };
+
+    $rows = [];
+    foreach ($accounts['assets'] ?? [] as $ac) {
+        $name = (string)($ac['name'] ?? '');
+        if ($name === '' || in_array($name, $excluded, true)) continue;
+        $subs = array_values(array_filter(array_map(fn($s) => (string)($s['name'] ?? ''), $ac['sub'] ?? []), 'strlen'));
+
+        // 補助科目ごとの増減（一覧にない補助科目・補助なしは「補助科目なし」へ）
+        $delta = ['' => array_fill_keys($months, 0)];
+        foreach ($subs as $sn) $delta[$sn] = array_fill_keys($months, 0);
+        foreach ($filtered as $i => $tx) {
+            $mk = $txMonths[$i] ?? null; if (!$mk) continue;
+            foreach ($tx['entries'] ?? [] as $e) {
+                $amt = (int)($e['amount'] ?? 0); if (!$amt) continue;
+                if (($e['debit_account'] ?? '') === $name) {
+                    $sk = in_array((string)($e['debit_sub'] ?? ''), $subs, true) ? (string)$e['debit_sub'] : '';
+                    $delta[$sk][$mk] += $amt;
+                }
+                if (($e['credit_account'] ?? '') === $name) {
+                    $sk = in_array((string)($e['credit_sub'] ?? ''), $subs, true) ? (string)$e['credit_sub'] : '';
+                    $delta[$sk][$mk] -= $amt;
+                }
+            }
+        }
+        $ob = ['' => 0];
+        foreach ($subs as $sn) $ob[$sn] = 0;
+        foreach ($obMap as $k => $v) {
+            if ($k === $name) { $ob[''] += $v; continue; }
+            if (!str_starts_with($k, $name . '/')) continue;
+            $sn = substr($k, strlen($name) + 1);
+            $ob[in_array($sn, $subs, true) ? $sn : ''] += $v;
+        }
+
+        $isCash = (bool)preg_match('/現金|預金/u', $name);
+        $keys = $subs ? array_merge($subs, ['']) : [''];
+        foreach ($keys as $sk) {
+            $bal = $toBal($ob[$sk], $delta[$sk]);
+            $nonzero = $ob[$sk] !== 0 || array_filter($delta[$sk]);
+            // 補助科目がある科目の「補助なし」分は、動きがあるときだけ出す
+            if ($subs && $sk === '' && !$nonzero) continue;
+            if (!$isCash && !$nonzero) continue;
+            $rows[] = [
+                'account' => $name,
+                'sub'     => $sk === '' ? null : $sk,
+                'name'    => $sk !== '' ? $sk : ($subs ? $name . '（補助科目なし）' : $name),
+                'opening' => $ob[$sk],
+                'monthly' => $bal,
+            ];
+        }
+    }
+    return $rows;
 }
 
 /**
