@@ -1019,7 +1019,7 @@ function aiAppExecTool(string $name, array $in, array $user): ?array {
             $name = trim((string)($in['name'] ?? '')); $pattern = trim((string)($in['pattern'] ?? ''));
             if ($name === '') return ['error' => 'ルール名が空です'];
             if ($pattern === '') return ['error' => 'pattern が空です（すべての明細に一致してしまいます）'];
-            if (@preg_match('/' . aiNoSpace($pattern) . '/ui', '') === false) return ['error' => 'pattern が正規表現として正しくありません'];
+            if (@preg_match(ruleRegex(aiNoSpace($pattern), 'ui'), '') === false) return ['error' => 'pattern が正規表現として正しくありません'];
             $err = aiCheckAccount(aiAccountIndex(), trim((string)($in['debit_account'] ?? '')), trim((string)($in['debit_sub'] ?? '')), '借方');
             if ($err) return ['error' => $err];
             $rule = ['name' => $name, 'pattern' => $pattern, 'debit_account' => trim((string)$in['debit_account']),

@@ -68,6 +68,7 @@ function paintIcons(root) {
   (root || document).querySelectorAll('[data-i]').forEach(el => els.push(el));
   els.forEach(el => {
     if (el.dataset.iDone === el.dataset.i) return;
+    if (!ICONS[el.dataset.i]) return;   // アイコン名でない data-i（行番号など）は中身を消さない
     el.innerHTML = iconSvg(el.dataset.i, parseInt(el.dataset.size || '0', 10) || undefined);
     el.dataset.iDone = el.dataset.i;
   });

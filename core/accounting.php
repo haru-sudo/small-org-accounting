@@ -257,6 +257,13 @@ function ruleKanaFold(string $s): string {
                       'ｬ' => 'ﾔ', 'ｭ' => 'ﾕ', 'ｮ' => 'ﾖ', 'ｯ' => 'ﾂ']);
 }
 
+// ── ルールのパターンを preg 用の正規表現にする ──
+// 区切り文字の「/」をそのまま書いたパターン（例: 「JR/東日本」）でも正規表現が壊れないよう、
+// エスケープされていない「/」を「\/」にする。
+function ruleRegex(string $pattern, string $flags = 'u'): string {
+    return '/' . preg_replace('#(?<!\\\\)/#', '\\/', $pattern) . '/' . $flags;
+}
+
 // ── ルール適用 ──
 function applyRulesToTx(array &$tx, array $rules): bool {
     usort($rules, fn($a,$b) => ($b['priority'] ?? 0) <=> ($a['priority'] ?? 0));
@@ -265,7 +272,7 @@ function applyRulesToTx(array &$tx, array $rules): bool {
         if ($pattern !== '') {
             $pNs = ruleKanaFold(preg_replace('/[\s　]/u', '', $pattern));
             $tNs = ruleKanaFold(preg_replace('/[\s　]/u', '', $tx['party'] ?? ''));
-            if (@preg_match('/' . $pNs . '/u', $tNs) !== 1) continue;
+            if (@preg_match(ruleRegex($pNs, 'u'), $tNs) !== 1) continue;
         }
         $txAmt = max(
             (int)($tx['debit']?? 0),(int)($tx['credit']?? 0),
