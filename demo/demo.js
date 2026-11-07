@@ -221,12 +221,50 @@
     const [incG, incT] = section(pick('income'), 'income');
     const [expG, expT] = section(pick('expense'), 'expense');
     const net = {}; Object.keys(incT).forEach(k => net[k] = incT[k] - expT[k]);
-    const obRaw = only ? 0 : (db.settings.opening_balances || {})[String(year)] || 0;
-    const ob = typeof obRaw === 'object' ? Object.values(obRaw).reduce((s, v) => s + parseInt(v || 0, 10), 0) : parseInt(obRaw || 0, 10);
-    const mb = {}; let run = ob; const ms = fyMonths();
-    ms.forEach(m => { run += net[m] || 0; mb[m] = run; });
-    mb['上半期'] = ob + net['上半期']; mb['下半期'] = mb[ms[5]] + net['下半期']; mb['年度合計'] = ob + net['年度合計'];
-    return { sections: [{ name: '収入の部', groups: incG, total: incT }, { name: '支出の部', groups: expG, total: expT }], net, opening_balance: ob, monthly_balance: mb };
+    const ms = fyMonths();
+    let ob = 0, mb = {}, breakdown = [];
+    if (only) {
+      let run = 0; ms.forEach(m => { run += net[m] || 0; mb[m] = run; });
+      mb['上半期'] = net['上半期']; mb['下半期'] = mb['年度合計'] = net['年度合計'];
+    } else {
+      // 期末残高は資産科目（立替金を除く）の月末残高の合計（core/accounting.php の calcBalanceBreakdown と同じ）
+      breakdown = balanceBreakdown(txs, year);
+      ob = breakdown.reduce((s, r) => s + r.opening, 0);
+      mb = emptyM(); breakdown.forEach(r => Object.keys(mb).forEach(k => mb[k] += r.monthly[k]));
+    }
+    return { sections: [{ name: '収入の部', groups: incG, total: incT }, { name: '支出の部', groups: expG, total: expT }], net, opening_balance: ob, monthly_balance: mb, balance_breakdown: breakdown };
+  }
+  function balanceBreakdown(txs, year) {
+    const excluded = ['立替金']; const adv = String(db.settings.advance_debit || '').trim(); if (adv && !excluded.includes(adv)) excluded.push(adv);
+    const obRaw = (db.settings.opening_balances || {})[String(year)] || 0;
+    const obMap = {};
+    if (typeof obRaw === 'object') Object.entries(obRaw).forEach(([k, v]) => { k = String(k).trim().replace(/\s*\/\s*/g, '/'); obMap[k] = (obMap[k] || 0) + parseInt(v || 0, 10); });
+    else if (obRaw) obMap['普通預金'] = parseInt(obRaw, 10);
+    const ms = fyMonths(); const rows = [];
+    (db.accounts.assets || []).forEach(a => {
+      if (!a.name || excluded.includes(a.name)) return;
+      const subs = (a.sub || []).map(s => s.name).filter(Boolean);
+      const keys = ['', ...subs]; const delta = {}; const ob = {};
+      keys.forEach(k => { delta[k] = {}; ms.forEach(m => delta[k][m] = 0); ob[k] = 0; });
+      txs.forEach(t => (t.entries || []).forEach(e => {
+        const amt = parseInt(e.amount || 0, 10); if (!amt) return; const mk = monthKey(t.date);
+        if (e.debit_account === a.name) delta[subs.includes(e.debit_sub) ? e.debit_sub : ''][mk] += amt;
+        if (e.credit_account === a.name) delta[subs.includes(e.credit_sub) ? e.credit_sub : ''][mk] -= amt;
+      }));
+      Object.entries(obMap).forEach(([k, v]) => {
+        if (k === a.name) ob[''] += v;
+        else if (k.startsWith(a.name + '/')) { const sn = k.slice(a.name.length + 1); ob[subs.includes(sn) ? sn : ''] += v; }
+      });
+      const isCash = /現金|預金/.test(a.name);
+      (subs.length ? [...subs, ''] : ['']).forEach(sk => {
+        const nonzero = ob[sk] !== 0 || ms.some(m => delta[sk][m]);
+        if ((subs.length && sk === '' && !nonzero) || (!isCash && !nonzero)) return;
+        const bal = {}; let run = ob[sk]; ms.forEach(m => { run += delta[sk][m]; bal[m] = run; });
+        bal['上半期'] = bal[ms[5]]; bal['下半期'] = bal['年度合計'] = bal[ms[11]];
+        rows.push({ account: a.name, sub: sk || null, name: sk || (subs.length ? a.name + '（補助科目なし）' : a.name), opening: ob[sk], monthly: bal });
+      });
+    });
+    return rows;
   }
   function advanceBalance(year) {
     const bal = {}; let run = 0; const delta = {}; const ms = fyMonths(); ms.forEach(m => delta[m] = 0);
@@ -315,7 +353,7 @@
     if (/残高/.test(msg)) {
       const k = calcKessan(String(fy));
       const ms = fyMonths().filter(mm => fyTx.some(t => monthKey(t.date) === mm));
-      return `${fy}年度の月末の残高（期首残高＋登録済みの取引）は次のとおりです。\n\n| 月 | 月末の残高 |\n|---|---|\n`
+      return `${fy}年度の月末の残高（現金・預金などの資産科目の合計。立替金は含みません）は次のとおりです。\n\n| 月 | 月末の残高 |\n|---|---|\n`
         + ms.map(mm => `| ${mm} | ${yenS(k.monthly_balance[mm])} |`).join('\n') + note;
     }
     if (/ルール/.test(msg)) {

@@ -420,7 +420,7 @@ function handleKessan(): void {
         $result['sub_report_title'] = $sub['title'];
     }
 
-    // PDF の注釈用: 各月末の立替金残高（期末残高のうち、まだ精算されていない立替の分）
+    // PDF の注釈用: 各月末の立替金残高（まだ精算されていない立替。期末残高には含めない）
     $result['advance_balance'] = calcAccountMonthEndBalance($txs, (string)$year, '立替金');
 
     $published = getPublishedMonths((string)$year);
@@ -432,6 +432,7 @@ function handleKessan(): void {
         $result['visible_cols'] = $visible;
         $strip = function(array $res) use ($visible): array {
             if (isset($res['sections'])) $res['sections'] = stripHiddenMonths($res['sections'], $visible);
+            if (!empty($res['balance_breakdown'])) $res['balance_breakdown'] = stripHiddenMonths($res['balance_breakdown'], $visible);
             foreach (['net','monthly_balance','advance_balance','totals','summary'] as $k) {
                 if (isset($res[$k]) && is_array($res[$k])) $res[$k] = stripHiddenMonths([$res[$k]], $visible)[0];
             }

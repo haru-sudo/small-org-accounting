@@ -16,14 +16,23 @@ function loadDash(){
   });
   const ur=allFyTxs.filter(t=>!t.registered).length;
   const pv=allFyTxs.filter(t=>txStatus(t)==='prov').length;
-  const obRaw=(sts.opening_balances||{})[curFy||document.getElementById('fy-sel').value]||0;
-  const ob=typeof obRaw==='object'?Object.values(obRaw).reduce((s,v)=>s+parseInt(v||0),0):parseInt(obRaw||0);
   const net=tIn-tOut;
+  // 期末残高は決算書と同じく、資産科目（立替金を除く）の期首残高＋増減
+  const obRaw=(sts.opening_balances||{})[curFy||document.getElementById('fy-sel').value]||0;
+  const obMap=typeof obRaw==='object'?obRaw:{'普通預金':parseInt(obRaw||0)};
+  const exAc=balanceExcludedAccounts();
+  const isBalAc=ac=>!!ac&&getAccountType(ac)==='assets'&&!exAc.includes(ac);
+  let closing=Object.entries(obMap).reduce((s,[k,v])=>s+(isBalAc(String(k).split('/')[0].trim())?parseInt(v||0):0),0);
+  txs.forEach(tx=>(tx.entries||[]).forEach(e=>{
+    const amt=parseInt(e.amount||0);
+    if(isBalAc(e.debit_account))  closing+=amt;
+    if(isBalAc(e.credit_account)) closing-=amt;
+  }));
   document.getElementById('stats').innerHTML=`
     <div class="stat"><div class="lb">収入合計</div><div class="vl i">¥${tIn.toLocaleString()}</div></div>
     <div class="stat"><div class="lb">支出合計</div><div class="vl e">¥${tOut.toLocaleString()}</div></div>
     <div class="stat"><div class="lb">収支差額</div><div class="vl ${net>=0?'i':'e'}">¥${net.toLocaleString()}</div></div>
-    <div class="stat"><div class="lb">期末残高（推計）</div><div class="vl b">¥${(ob+net).toLocaleString()}</div></div>
+    <div class="stat"><div class="lb">期末残高（推計）</div><div class="vl b">¥${closing.toLocaleString()}</div></div>
     <div class="stat"><div class="lb">仕訳未登録</div><div class="vl" style="color:${ur>0?'#f59e0b':'#059669'}">${ur}件</div>${pv?`<div style="font-size:11px;color:#b45309">うち仮登録 ${pv}件</div>`:''}</div>`;
   const unp=allFyTxs.filter(t=>!t.registered).slice(0,10);
   const el=document.getElementById('unreglist');
@@ -37,6 +46,13 @@ function loadDash(){
 }
 
 // ── 決算書 ──
+// 期末残高に入れない資産科目（core/accounting.php の balanceExcludedAccounts と同じ）
+function balanceExcludedAccounts(){
+  const out=['立替金'];
+  const adv=String((typeof sts!=='undefined'&&sts&&sts.advance_debit)||'').trim();
+  if(adv&&!out.includes(adv)) out.push(adv);
+  return out;
+}
 // 会計年度の月（設定の開始月から並べる。4月始まりなら「4月」…「3月」）
 function fyMonthList(){
   const st=parseInt((typeof sts!=='undefined'&&sts&&sts.fiscal_year_start)||4,10);
@@ -49,7 +65,7 @@ function fyKessanCols(){ const m=fyMonthList(); return [...m.slice(0,6),'上半�
 // 表示可能な列（閲覧専用ユーザーのみ制限される）
 let ksVisibleCols=null;   // null = 全列表示
 let ksPubMonths=[];       // 公開中の月
-let ksAdvBal=null;        // 各月末の立替金残高（PDF の注釈用）
+let ksAdvBal=null;        // 各月末の立替金残高（期末残高には含めない。PDF の注釈用）
 
 async function loadK(){
   const yr=document.getElementById('ks-yr').value;if(!yr)return;
@@ -168,6 +184,14 @@ function ksTable(d,balLabel,showOpening){
     }).join('')}</tr>`;
   });
   h+=`<tr class="knet"><td colspan="2">収支差額</td>${fyKessanCols().map(m=>vis(m)?`<td>${(d.net[m]||0).toLocaleString()}</td>`:HCELL).join('')}</tr>`;
+  // 期末残高の内訳（口座・現金ごとの月末残高。立替金は含めない）
+  const bd=d.balance_breakdown||[];
+  if(bd.length>1){
+    h+=`<tr class="ks"><td colspan="${fyKessanCols().length+2}">期末残高の内訳</td></tr>`;
+    bd.forEach(r=>{
+      h+=`<tr class="kbd"><td></td><td style="padding-left:20px">${escHtml(r.name)}</td>${fyKessanCols().map(m=>vis(m)?`<td>${(r.monthly[m]||0).toLocaleString()}</td>`:HCELL).join('')}</tr>`;
+    });
+  }
   h+=`<tr class="kbal"><td colspan="2">${balLabel}</td>${fyKessanCols().map(m=>vis(m)?`<td>¥${(d.monthly_balance[m]||0).toLocaleString()}</td>`:HCELL).join('')}</tr>`;
   h+='</tbody></table>';
   return h;
@@ -219,15 +243,15 @@ async function dlK(){
     ()=>dlKPDF()
   );
 }
-// PDF の注釈: 期末残高のうち立替金（まだ精算されていない立替）の額。
+// PDF の注釈: 期末残高に含めていない立替金（まだ精算されていない立替）の額。
 // 年度合計が見えていればその時点、見えていなければ表示中の最後の月末の残高を書く。
 function ksAdvNote(){
   if(!ksAdvBal) return '';
   const vis=m=>!ksVisibleCols||ksVisibleCols.includes(m);
   const col=vis('年度合計') ? '年度合計' : [...fyMonthList()].reverse().find(m=>vis(m)&&m in ksAdvBal);
-  if(!col || !(col in ksAdvBal)) return '';
+  if(!col || !(col in ksAdvBal) || !ksAdvBal[col]) return '';
   const when=col==='年度合計' ? '年度末' : `${col}末`;
-  return `<p style="margin:12px 0 0;font-size:10px;color:#475569">※ 期末残高には立替金 ¥${(ksAdvBal[col]||0).toLocaleString()}（${when}時点・未精算の立替）を含みます。</p>`;
+  return `<p style="margin:12px 0 0;font-size:10px;color:#475569">※ 期末残高には立替金 ¥${(ksAdvBal[col]||0).toLocaleString()}（${when}時点・未精算の立替）を含みません。</p>`;
 }
 function dlKPDF(){
   const yr=document.getElementById('ks-yr').value;

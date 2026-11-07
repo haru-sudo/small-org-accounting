@@ -196,6 +196,23 @@ def _write_kessan_table(ws, r, data, title, balance_label, show_opening=False):
         cell.font = _FONT_NET
     r += 1
 
+    # 期末残高の内訳（口座・現金ごとの月末残高。立替金は含めない）
+    breakdown = data.get('balance_breakdown') or []
+    if len(breakdown) > 1:
+        r += 1
+        ws.cell(r, 1, '期末残高の内訳')
+        for c in range(1, n_cols + 1):
+            cell = ws.cell(r, c)
+            cell.fill = _SECTION_FILL
+            cell.font = _FONT_SECTION
+        r += 1
+        for row in breakdown:
+            ws.cell(r, 2, f"  {row['name']}")
+            for i, m in enumerate(_KMX, 3):
+                cell = ws.cell(r, i, row['monthly'].get(m, 0))
+                cell.number_format = '#,##0'
+            r += 1
+
     # 期末残高（別表では収支累計）
     ws.cell(r, 2, balance_label)
     for i, m in enumerate(_KMX, 3):
