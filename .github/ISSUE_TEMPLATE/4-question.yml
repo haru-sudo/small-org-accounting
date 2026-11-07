@@ -1,0 +1,16 @@
+name: 質問
+description: 使い方・設定・置き方がわからない
+title: "[質問] "
+labels: ["question"]
+body:
+  - type: textarea
+    id: q
+    attributes:
+      label: 知りたいこと
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: 試したこと
+      description: README のどこを読んだか、何をしたらどうなったか

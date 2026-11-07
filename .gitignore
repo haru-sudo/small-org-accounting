@@ -1,0 +1,25 @@
+# ---- OS / ツール ----
+.DS_Store
+__pycache__/
+*.pyc
+*.log
+*.bak
+*.bak_*
+*.sqlite-wal
+*.sqlite-shm
+*.db-wal
+*.db-shm
+*.db-journal
+
+# ---- 秘密情報（サーバー上のものを保持し、デプロイでは上書き・削除しない）----
+/service-account.json
+
+# ---- Composer の依存（デプロイ時に GitHub Actions で composer install する）----
+/vendor/
+
+# ---- 運用データ（サーバー上で生成・更新される）----
+/data/
+/uploads/
+
+# ---- デモのビルド結果 ----
+/_site/

@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>会計システム</title>
+    <link rel="stylesheet" href="static/css/style.css?v=20261107">
+    <link rel="icon" type="image/png" href="static/img/favicon.png">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+
+<!-- ログイン画面（未ログインのとき。使えるログイン方法だけ出す） -->
+<div id="login-lock" class="login-lock">
+  <div class="login-box">
+    <div style="font-size:44px;margin-bottom:10px"><span class="ei" data-i="book"></span></div>
+    <h2 class="login-title">会計システム</h2>
+    <p id="login-club" class="login-club"></p>
+    <!-- 初回セットアップ（ユーザーが1人もいないとき） -->
+    <form id="login-setup" style="display:none" onsubmit="event.preventDefault();loginSetup()">
+      <p class="login-lead">はじめに、管理者のアカウントを作ります。</p>
+      <input id="ls-name" class="login-input" type="text" placeholder="名前" autocomplete="name">
+      <input id="ls-email" class="login-input" type="email" placeholder="メールアドレス" autocomplete="email" required>
+      <input id="ls-pass" class="login-input" type="password" placeholder="パスワード（10文字以上）" autocomplete="new-password" required minlength="10">
+      <input id="ls-pass2" class="login-input" type="password" placeholder="パスワード（確認）" autocomplete="new-password" required minlength="10">
+      <button class="login-btn login-btn-primary" type="submit">管理者を作成してはじめる</button>
+    </form>
+    <!-- パスワードログイン -->
+    <form id="login-password" style="display:none" onsubmit="event.preventDefault();loginPassword()">
+      <input id="lp-email" class="login-input" type="email" placeholder="メールアドレス" autocomplete="username" required>
+      <input id="lp-pass" class="login-input" type="password" placeholder="パスワード" autocomplete="current-password" required>
+      <button class="login-btn login-btn-primary" type="submit">ログイン</button>
+    </form>
+    <div id="login-or" class="login-or" style="display:none"><span>または</span></div>
+    <a id="login-slack" class="login-btn login-btn-slack" href="#" style="display:none">
+      <svg width="18" height="18" viewBox="0 0 122.8 122.8" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M25.8 77.6c0 7.1-5.8 12.9-12.9 12.9S0 84.7 0 77.6s5.8-12.9 12.9-12.9h12.9v12.9zm6.5 0c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9v32.3c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V77.6z" fill="#E01E5A"/>
+        <path d="M45.2 25.8c-7.1 0-12.9-5.8-12.9-12.9S38.1 0 45.2 0s12.9 5.8 12.9 12.9v12.9H45.2zm0 6.5c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H12.9C5.8 58.1 0 52.3 0 45.2s5.8-12.9 12.9-12.9h32.3z" fill="#36C5F0"/>
+        <path d="M97 45.2c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9-5.8 12.9-12.9 12.9H97V45.2zm-6.5 0c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V12.9C64.7 5.8 70.5 0 77.6 0s12.9 5.8 12.9 12.9v32.3z" fill="#2EB67D"/>
+        <path d="M77.6 97c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9-12.9-5.8-12.9-12.9V97h12.9zm0-6.5c-7.1 0-12.9-5.8-12.9-12.9s5.8-12.9 12.9-12.9h32.3c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H77.6z" fill="#ECB22E"/>
+      </svg>
+      Slackでログイン
+    </a>
+    <a id="login-google" class="login-btn login-btn-google" href="#" style="display:none">
+      <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>
+      Googleでログイン
+    </a>
+    <p id="login-err" class="login-err"></p>
+    <p class="login-legal">© 2026 HAL-JP · <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener">AGPL-3.0</a> · 保証なし · <a href="https://github.com/haru-sudo/small-org-accounting" target="_blank" rel="noopener">ソースコード</a></p>
+  </div>
+</div>
+<script>
+// GitHub Pages（*.github.io）で開いたときだけデモにする: サーバーの代わりにブラウザの中で API をまねる
+if (/\.github\.io$/.test(location.hostname)) document.write('<script src="demo/demo.js"><\/script>');
+</script>
+<script src="static/js/icons.js?v=20261107"></script>
+<script src="static/js/login.js?v=20261107"></script>
+
+<div class="sb-overlay" id="sbov" onclick="closeSb()"></div>
+<div class="layout">
+    
+<!-- サイドバー -->
+<div class="sb" id="sb">
+  <div class="sbh">
+    <div><h1><span class="ei" data-i="book"></span>会計</h1><p id="club-lbl">読込中...</p></div>
+    <button class="mcl" onclick="closeSb()" style="display:none" id="sb-close">✕</button>
+  </div>
+  <div class="ns">
+    <div class="nl">メイン</div>
+    <button class="ni active" onclick="nav('dashboard')" id="nav-dashboard"><span class="ic"><span class="ei" data-i="chart"></span></span>ダッシュボード</button>
+    <button class="ni" onclick="nav('journal')" id="nav-journal"><span class="ic"><span class="ei" data-i="book"></span></span>仕訳帳</button>
+    <button class="ni" onclick="nav('kessan')" id="nav-kessan"><span class="ic"><span class="ei" data-i="clipboard"></span></span>決算書</button>
+    <button class="ni" onclick="nav('ledger')" id="nav-ledger"><span class="ic"><span class="ei" data-i="books"></span></span>帳簿（元帳・日記帳）</button>
+    <button class="ni" onclick="nav('assets')" id="nav-assets"><span class="ic"><span class="ei" data-i="bank"></span></span>資産・残高</button>
+    <button class="ni" onclick="nav('invoice')" id="nav-invoice" data-feature="invoice"><span class="ic"><span class="ei" data-i="mail"></span></span>請求書</button>
+    <button class="ni" onclick="nav('billing')" id="nav-billing" data-feature="billing"><span class="ic"><span class="ei" data-i="clipboard"></span></span>請求シート</button>
+    <button class="ni" onclick="nav('claims')" id="nav-claims" data-feature="claims"><span class="ic"><span class="ei" data-i="train"></span></span>交通費申請（管理）</button>
+    <button class="ni" onclick="nav('ai')" id="nav-ai" data-feature="ai"><span class="ic"><span class="ei" data-i="spark"></span></span>AIアシスタント</button>
+  </div>
+  <div class="ns">
+    <div class="nl">設定</div>
+    <button class="ni" onclick="nav('upload')" id="nav-upload"><span class="ic"><span class="ei" data-i="upload"></span></span>PDFアップロード</button>
+    <button class="ni" onclick="nav('rules')" id="nav-rules"><span class="ic"><span class="ei" data-i="bolt"></span></span>自動仕訳ルール</button>
+    <button class="ni" onclick="nav('credit-rules')" id="nav-credit-rules" data-feature="credit_card"><span class="ic"><span class="ei" data-i="card"></span></span>クレカ仕訳</button>
+    <button class="ni" onclick="nav('accounts')" id="nav-accounts"><span class="ic"><span class="ei" data-i="tag"></span></span>勘定科目</button>
+    <button class="ni" onclick="nav('settings')" id="nav-settings"><span class="ic"><span class="ei" data-i="gear"></span></span>設定</button>
+    <button class="ni" onclick="nav('users')" id="nav-users"><span class="ic"><span class="ei" data-i="users"></span></span>ユーザー管理</button>
+    <button class="ni" onclick="nav('logs')" id="nav-logs"><span class="ic"><span class="ei" data-i="clipboard"></span></span>編集ログ</button>
+  </div>
+  <!-- 著作権とライセンスの表示（AGPL-3.0 第5条d・第13条）。改造した場合は「ソースコード」をその場所に変える -->
+  <div class="legal">© 2026 HAL-JP<br><a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener">AGPL-3.0</a>・保証なし・<a href="https://github.com/haru-sudo/small-org-accounting" target="_blank" rel="noopener">ソースコード</a></div>
+</div>
+
+<!-- メインコンテンツ -->
+<div class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="menu-btn" id="menu-btn" onclick="openSb()">☰</button>
+        <h2 id="ptitle">ダッシュボード</h2>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <div id="user-badge" style="display:flex;align-items:center"></div>
+        <select class="fi" id="fy-sel" onchange="onFy()" style="width:96px"></select>
+        <select class="fi" id="mo-sel" onchange="onMo()" style="width:80px">
+          <option value="">全月</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="content">
+
+        <!-- 各ページの内容 -->
+        <div class="page active" id="page-dashboard">
+          <div class="stats" id="stats"></div>
+          <div class="card"><div class="ct"><span class="ei" data-i="alert"></span>仕訳未登録</div><div id="unreglist"></div></div>
+        </div>
+
+        <div class="page" id="page-journal">
+          <div class="card">
+            <div class="fls">
+              <input class="fi" id="js" placeholder="相手先・摘要・補助科目・金額・日付" oninput="fj()" title="金額で検索: 934652 / =934652 / >100000 / 1000-5000。日付で検索: 2025/4/1 / 2025-04 / 4/1 / 4月 / 4/1~4/30 / >=2025/4/1。空白区切りで複数条件（例: 会場費 >20000 4月）" style="min-width:120px;flex:1">
+              <select class="fi" id="jt" onchange="fj()" style="width:72px"><option value="">全種別</option><option value="振込">振込</option><option value="振替">振替</option><option value="現金">現金</option><option value="手動">手動</option></select>
+              <select class="fi" id="ja" onchange="fj()" style="min-width:100px;flex:1"></select>
+              <select class="fi" id="jst" onchange="fj()" style="width:72px"><option value="">全状態</option><option value="unreg">未登録</option><option value="prov">仮登録</option><option value="reg">登録済</option></select>
+            </div>
+            <div style="font-size:11px;color:#94a3b8;margin:-4px 0 10px;line-height:1.6">
+              金額でも検索できます —
+              <code style="background:#f1f5f9;border-radius:3px;padding:1px 4px">934652</code>（部分一致）
+              <code style="background:#f1f5f9;border-radius:3px;padding:1px 4px">=934652</code>（完全一致）
+              <code style="background:#f1f5f9;border-radius:3px;padding:1px 4px">&gt;100000</code>
+              <code style="background:#f1f5f9;border-radius:3px;padding:1px 4px">1000-5000</code>（範囲）。
+              日付は
+              <code style="background:#f1f5f9;border-radius:3px;padding:1px 4px">2025/4/1</code>
+              <code style="background:#f1f5f9;border-radius:3px;padding:1px 4px">2025-04</code>（月）
+              <code style="background:#f1f5f9;border-radius:3px;padding:1px 4px">4/1</code>
+              <code style="background:#f1f5f9;border-radius:3px;padding:1px 4px">4月</code>
+              <code style="background:#f1f5f9;border-radius:3px;padding:1px 4px">4/1~4/30</code>（範囲）
+              <code style="background:#f1f5f9;border-radius:3px;padding:1px 4px">&gt;=2025/4/1</code>。
+              空白で区切ると複数条件（例: <code style="background:#f1f5f9;border-radius:3px;padding:1px 4px">合宿 &gt;50000</code>）。
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px">
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button class="btn bp bsm" onclick="openAddTx()">＋ 追加</button>
+                <button class="btn bg bsm" onclick="bulkReg()">✓ 一括登録</button>
+                <button class="btn bw bsm" onclick="bulkProv()"><span class="ei" data-i="edit"></span>一括仮登録</button>
+                <button class="btn bg bsm" onclick="commitProv()" title="表示中の年度・月の仮登録をすべて登録済みにします">✓ 仮登録を一括登録</button>
+                <button class="btn bs bsm" onclick="expJ()"><span class="ei" data-i="download"></span>出力</button>
+              </div>
+              <span id="jcount" style="font-size:12px;color:var(--mu)"></span>
+            </div>
+            <div id="jgroups"></div>
+            <div class="pag" id="jpag"></div>
+          </div>
+        </div>
+
+        <div class="page" id="page-kessan">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+            <select class="fi" id="ks-yr" onchange="loadK()" style="width:100px"></select>
+            <button class="btn bg bsm" id="ks-dl" onclick="dlK()"><span class="ei" data-i="download"></span>出力</button>
+          </div>
+
+          <!-- 公開設定（管理者のみ表示） -->
+          <div class="card" id="ks-pub" style="display:none;margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+              <div style="font-size:13px;font-weight:700;color:#334155">閲覧専用ユーザーへの公開</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button class="btn bs bsm" onclick="ksPubAll(true)">全月を公開</button>
+                <button class="btn bs bsm" onclick="ksPubAll(false)">全月を非公開</button>
+                <button class="btn bg bsm" onclick="saveKsPub()"><span class="ei" data-i="save"></span>保存</button>
+              </div>
+            </div>
+            <p style="font-size:11px;color:#64748b;line-height:1.7;margin-bottom:8px">
+              チェックした月だけが閲覧専用ユーザーに表示されます。上半期・下半期・年度合計は、その期間の月がすべて公開されている場合のみ表示されます。
+            </p>
+            <div id="ks-pub-months" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+          </div>
+
+          <!-- 閲覧専用ユーザー向けの案内 -->
+          <div id="ks-viewer-note" style="display:none;font-size:12px;color:#0369a1;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:9px 12px;margin-bottom:12px;line-height:1.7"></div>
+
+          <div class="card" style="padding:0;overflow-x:auto" id="kwrap"></div>
+
+          <!-- 設定で選んだ勘定科目だけの別表（設定 → 決算書の別表） -->
+          <div id="kwrap-sk-wrap" style="display:none">
+            <div id="kwrap-sk-title" style="font-size:14px;font-weight:700;color:#334155;margin:20px 0 8px">別表</div>
+            <div class="card" style="padding:0;overflow-x:auto" id="kwrap-sk"></div>
+          </div>
+        </div>
+
+        <div class="page" id="page-ledger">
+          <!-- タブ切替 -->
+          <div class="tabs" style="margin-bottom:12px">
+            <button class="tab active" id="ledger-tab-ld" onclick="ledgerTab('ld')"><span class="ei" data-i="books"></span>総勘定元帳</button>
+            <button class="tab" id="ledger-tab-mo" onclick="ledgerTab('mo')"><span class="ei" data-i="book"></span>月次仕訳日記帳</button>
+          </div>
+
+          <!-- 総勘定元帳ペイン -->
+          <div id="ledger-pane-ld">
+            <div class="card">
+              <div class="fls">
+                <select class="fi" id="ld-ac" onchange="loadLd()" style="width:180px"></select>
+                <select class="fi" id="ld-yr" onchange="loadLd()" style="width:96px"></select>
+                <button class="btn bs bsm" onclick="expLedger()"><span class="ei" data-i="download"></span>出力</button>
+              </div>
+              <div class="tbl-wrap"><table>
+                <thead><tr><th>日付</th><th>相手科目</th><th>相手先</th><th>摘要</th><th style="text-align:right">金額</th><th style="text-align:right">残高</th></tr></thead>
+                <tbody id="ldbody"></tbody>
+              </table></div>
+            </div>
+          </div>
+
+          <!-- 月次仕訳日記帳ペイン -->
+          <div id="ledger-pane-mo" style="display:none">
+            <div class="card">
+              <div class="fls">
+                <select class="fi" id="ml-yr" onchange="loadMonthly()" style="width:96px"></select>
+                <select class="fi" id="ml-mo" onchange="loadMonthly()" style="width:72px">
+                  <option value="">全月</option>
+                  <option value="4">4月</option><option value="5">5月</option><option value="6">6月</option>
+                  <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
+                  <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+                  <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
+                </select>
+                <label style="font-size:12px;display:flex;align-items:center;gap:4px">
+                  <input type="checkbox" id="ml-by-account" onchange="loadMonthly()"> 勘定科目別集計
+                </label>
+                <button class="btn bs bsm" onclick="expMonthly()"><span class="ei" data-i="download"></span>出力</button>
+              </div>
+              <div id="ml-content"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="page" id="page-assets">
+          <div id="ab-wrap"></div>
+
+          <!-- 月別残高推移 -->
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+              <div class="ct" style="margin-bottom:0"><span class="ei" data-i="calendar"></span>月別 現金・預金残高</div>
+              <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                <label style="font-size:12px;display:flex;align-items:center;gap:5px">
+                  <input type="checkbox" id="mb-all" onchange="loadMonthlyBalance()">立替金など他の資産科目も表示
+                </label>
+                <label style="font-size:12px;display:flex;align-items:center;gap:5px">
+                  <input type="checkbox" id="mb-sub" checked onchange="loadMonthlyBalance()">補助科目の内訳を表示
+                </label>
+                <button class="btn bg bsm" onclick="expMonthlyBalance()"><span class="ei" data-i="download"></span>CSV</button>
+              </div>
+            </div>
+            <p style="font-size:12px;color:var(--mu);margin-bottom:10px">
+              各月末時点の残高（期首残高＋登録済み仕訳の累計）。下段のカッコはその月の増減です。
+            </p>
+            <div id="mb-wrap"></div>
+          </div>
+        </div>
+
+        <div class="page" id="page-invoice">
+
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+              <div class="ct" style="margin-bottom:0"><span class="ei" data-i="mail"></span>請求書一覧</div>
+              <button class="btn bp bsm" onclick="openInv()">＋ 新規作成</button>
+            </div>
+            <div class="tbl-wrap">
+              <table><thead><tr>
+                <th>番号</th><th>発行日</th><th>期限</th><th>宛先</th><th>件名</th>
+                <th style="text-align:right">金額</th><th>状態</th><th></th>
+              </tr></thead>
+              <tbody id="inv-body"></tbody></table>
+            </div>
+          </div>
+        </div>
+
+        <div class="page" id="page-billing">
+          <div class="tabs" id="bl-tabs">
+            <button class="tab active" onclick="blTab('sheet')" id="bltab-sheet"><span class="ei" data-i="clipboard"></span>シート作成</button>
+            <button class="tab" onclick="blTab('history')" id="bltab-history"><span class="ei" data-i="clock"></span>生成履歴</button>
+            <button class="tab" onclick="blTab('members')" id="bltab-members"><span class="ei" data-i="users"></span>メンバーマスタ</button>
+          </div>
+          
+          <div id="bl-sheet-pane">
+            <div class="card">
+              <div style="display:flex; gap:16px; margin-bottom:14px; border-bottom:1px solid var(--bd); padding-bottom:10px;">
+                <label style="font-weight:600; cursor:pointer;"><input type="radio" name="bl_type" value="buhi" checked onchange="toggleBlType()" style="accent-color:var(--p)"> 会費（毎月）</label>
+                <label style="font-weight:600; cursor:pointer;"><input type="radio" name="bl_type" value="other" onchange="toggleBlType()" style="accent-color:var(--p)"> その他（都度請求）</label>
+              </div>
+
+              <!-- 会費入力エリア -->
+              <div id="bl-buhi-inputs" class="fg">
+                <div><label>対象月</label><input type="month" id="bl-period" class="fi" style="width:100%"></div>
+                <div><label>振込期限</label><input type="date" id="bl-due" class="fi" style="width:100%"></div>
+                <div><label>自動仕訳: 借方科目</label><select id="bl-debit-ac" class="fi" style="width:100%" onchange="updBlDebitSub()"></select></div>
+                <div><label>自動仕訳: 借方補助</label><select id="bl-debit-sub" class="fi" style="width:100%"></select></div>
+                <div><label>自動仕訳: 貸方科目</label><select id="bl-credit-ac" class="fi" style="width:100%" onchange="renderBlPreview()"></select></div>
+                <div class="full"><label>摘要テンプレート</label><input id="bl-memo-tmpl" class="fi" style="width:100%" value="{$相手先} {$取引月}月分会費"></div>
+              </div>
+
+              <!-- その他請求入力エリア -->
+              <div id="bl-other-inputs" class="fg" style="display:none;">
+                <div class="full"><label>請求タイトル</label><input type="text" id="bl-other-title" class="fi" style="width:100%"></div>
+                <div><label>判定開始日</label><input type="date" id="bl-start" class="fi" style="width:100%"></div>
+                <div><label>振込期限</label><input type="date" id="bl-other-due" class="fi" style="width:100%"></div>
+                <div><label>自動仕訳: 借方科目</label><select id="bl-other-debit-ac" class="fi" style="width:100%" onchange="updBlOtherDebitSub()"></select></div>
+                <div><label>自動仕訳: 借方補助</label><select id="bl-other-debit-sub" class="fi" style="width:100%"></select></div>
+                <div><label>自動仕訳: 貸方科目</label><select id="bl-other-credit-ac" class="fi" style="width:100%" onchange="updBlOtherCreditSub()"></select></div>
+                <div><label>自動仕訳: 貸方補助</label><select id="bl-other-credit-sub" class="fi" style="width:100%"></select></div>
+              </div>
+
+              <div style="margin-top:14px">
+                <p style="font-size:12px;color:var(--mu);margin-bottom:8px">
+                  ※生成時にPDFがダウンロードされ、振込確認用に履歴へ保存されます。
+                </p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <button class="btn bp" onclick="genBillingSheet()"><span class="ei" data-i="file"></span>シート生成・PDFダウンロード・履歴に保存</button>
+                </div>
+              </div>
+              <div style="margin-top:14px">
+                <div class="ct" style="font-size:13px">請求額プレビュー・個別設定</div>
+                <div class="tbl-wrap">
+                  <table id="bl-preview-table">
+                    <!-- JSで動的に生成 -->
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div id="bl-history-pane" style="display:none">
+            <div class="card">
+              <div class="ct">生成済みシート一覧</div>
+              <div id="bl-history-list"></div>
+            </div>
+          </div>
+          
+          <div id="bl-members-pane" style="display:none">
+            <div class="card">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                <div class="ct" style="margin-bottom:0">メンバーマスタ</div>
+                <div style="display:flex;gap:6px">
+                  <button class="btn bp bsm" onclick="openAddMember()">＋ 追加</button>
+                  <button class="btn bg bsm" onclick="saveMembers()"><span class="ei" data-i="save"></span>保存</button>
+                </div>
+              </div>
+              <div class="tbl-wrap">
+                <table><thead><tr><th>氏名</th><th>振込名義（半角カナ）</th><th>区分</th><th>デフォ貸方補助</th><th style="text-align:right">会費</th><th>デフォルト摘要</th><th></th></tr></thead>
+                <tbody id="member-body"></tbody></table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AIアシスタント（Claude API）
+             背景の文字の海（canvas）はタップすると青い波が広がる。描画は static/js/ai-bg.js -->
+        <div class="page" id="page-ai">
+          <div class="tz" id="tz">
+            <canvas id="tz-bg" class="tz-bg" aria-hidden="true"></canvas>
+
+            <div class="tz-top">
+              <div class="tz-title" id="tz-title">新しい会話</div>
+              <div class="tz-top-actions">
+                <button class="tz-icon tz-float-only" onclick="nav('ai')" title="大きく開く" aria-label="大きく開く">
+                  <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
+                </button>
+                <button class="tz-icon" onclick="aiNewChat()" title="新しい会話" aria-label="新しい会話">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                </button>
+                <button class="tz-icon" onclick="aiToggleHistory(event)" title="会話の履歴" aria-label="会話の履歴">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>
+                </button>
+                <button class="tz-icon tz-float-only" onclick="aiCloseFloat()" title="閉じる" aria-label="閉じる">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+                <button class="tz-icon" onclick="aiOpenSettings()" title="AI設定" aria-label="AI設定">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- 会話の履歴（ポップオーバー／スマホは下から出るシート） -->
+            <div class="tz-pop" id="tz-history" hidden>
+              <button class="tz-pop-new" onclick="aiNewChat()">＋ 新しい会話</button>
+              <div id="ai-conv-list" class="tz-conv-list"></div>
+            </div>
+
+            <div class="tz-scroll" id="tz-scroll">
+              <div id="ai-msgs" class="tz-msgs"></div>
+            </div>
+
+            <div class="tz-dock">
+              <div class="tz-pony" id="tz-pony" aria-hidden="true"></div>
+              <div id="ai-error" class="tz-error" style="display:none"></div>
+              <div class="tz-input">
+                <div class="tz-tray" id="ai-tray"></div>
+                <button class="tz-plus" onclick="document.getElementById('ai-file').click()" title="画像・PDF・CSV を添付" aria-label="ファイルを添付">＋</button>
+                <input type="file" id="ai-file" multiple hidden accept="image/*,application/pdf,.csv,.txt,text/csv,text/plain" onchange="aiPickFiles(this.files);this.value=''">
+                <textarea id="ai-input" rows="1" placeholder="AIアシスタントに頼みたいことを入力…" enterkeyhint="send"
+                  oninput="aiGrow(this)" onkeydown="aiKey(event)"></textarea>
+                <button class="tz-send" id="ai-send" onclick="aiSend()" title="送信" aria-label="送信">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
+                </button>
+              </div>
+              <div class="tz-status">
+                <span class="tz-chip"><span class="ei" data-i="spark"></span>AIアシスタント</span>
+                <button class="tz-chip" onclick="aiOpenSettings()" id="tz-model-chip">—</button>
+                <button class="tz-chip" onclick="aiOpenSettings()" id="tz-mode-chip">—</button>
+                <span class="tz-chip" id="tz-usage" hidden></span>
+                <button class="tz-chip tz-fab-toggle" id="tz-fab-toggle" onclick="aiSetFabHidden(!document.body.classList.contains('tz-fab-off'))"></button>
+                <span class="tz-status-hint" id="tz-hint"></span>
+              </div>
+            </div>
+
+            <!-- AI設定（モーダル／スマホは下から出るシート） -->
+            <div class="tz-sheet-ov" id="tz-settings" hidden onclick="if(event.target===this)aiCloseSettings()">
+              <div class="tz-sheet" role="dialog" aria-label="AI設定">
+                <div class="tz-sheet-hd"><span><span class="ei" data-i="gear"></span>AI設定</span><button class="tz-icon" onclick="aiCloseSettings()" aria-label="閉じる">✕</button></div>
+                <label class="tz-field"><span>モデル</span><select id="ai-model"></select></label>
+                <label class="tz-field"><span>考える深さ <small>深いほど丁寧だが遅く高い</small></span>
+                  <select id="ai-effort">
+                    <option value="low">low（速い）</option><option value="medium">medium（標準）</option>
+                    <option value="high">high（丁寧）</option><option value="xhigh">xhigh（最も丁寧）</option>
+                  </select>
+                </label>
+                <label class="tz-check"><input id="ai-auto" type="checkbox"><span>確認なしで実行する<small>仕訳・ルール・設定の変更をAIアシスタントがすぐ実行します</small></span></label>
+                <label class="tz-field"><span>AIアシスタントへの追加の指示 <small>仕訳の決まりごとなど</small></span>
+                  <textarea id="ai-instr" rows="4" placeholder="例: 合宿の宿泊費は「合宿費」、ボールやラケットは「備品費」で仕訳する。会費の入金は請求シートで処理するので触らない。"></textarea>
+                </label>
+                <button class="tz-primary" onclick="aiSaveSettings()">保存</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="page" id="page-upload">
+          <div class="card">
+            <div class="ct"><span class="ei" data-i="upload"></span>三井住友銀行 Value Door PDFアップロード</div>
+            <p style="font-size:12px;color:var(--mu);margin-bottom:12px;line-height:1.7">
+              Value Door →「振込・入金照会等＜Web21＞」→ 取引口座照会 → 入出金明細照会 で期間を指定して照会し、照会結果の<strong>「帳票印刷」</strong>で保存した PDF をアップロードします。
+              <a href="https://github.com/haru-sudo/small-org-accounting/blob/main/docs/valuedoor-import.md" target="_blank" rel="noopener" style="color:#2563eb">くわしい手順</a>
+            </p>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">取引期間 開始日 <span style="color:#ef4444">*</span></label>
+                <input type="date" id="up-period-start" class="fi" style="width:100%">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">取引期間 終了日 <span style="color:#ef4444">*</span></label>
+                <input type="date" id="up-period-end" class="fi" style="width:100%">
+              </div>
+            </div>
+            <div class="upload-warn" id="up-today-warn" style="display:none">
+              <span class="ei" data-i="alert"></span><strong>ダウンロードした日の日付は終了日に含めないでください。</strong><br>
+              終了日は<strong>ダウンロード日の前日</strong>を指定してください。
+            </div>
+            <div id="up-date-error" style="margin-top:8px"></div>
+
+            <div class="drop" id="drop" onclick="document.getElementById('pdfin').click()" style="margin-top:12px">
+              <div style="font-size:36px;margin-bottom:8px"><span class="ei" data-i="file"></span></div>
+              <div style="font-weight:600">クリックまたはドラッグ＆ドロップ</div>
+            </div>
+            <input type="file" id="pdfin" accept=".pdf" style="display:none" onchange="upPDF(this)">
+            <div id="upres" style="margin-top:12px"></div>
+          </div>
+          <div class="card">
+            <div class="ct"><span class="ei" data-i="calendar"></span>取込済み日付カレンダー</div>
+            <div id="upload-calendar"></div>
+          </div>
+
+          <!-- 期間リセット -->
+          <div class="card" style="border:1px solid #fecaca;background:#fff7f7">
+            <div class="ct"><span class="ei" data-i="eraser"></span>期間を指定してリセット</div>
+            <p style="font-size:12px;color:var(--mu);margin-bottom:12px">
+              指定した期間の仕訳を削除し、取込済みカレンダーを「未取込」に戻します。PDFを取り込み直したいときに使ってください。<br>
+              実行前に自動バックアップを取るので、直後であれば「取り消し」で元に戻せます。
+            </p>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">リセット期間 開始日 <span style="color:#ef4444">*</span></label>
+                <input type="date" id="rs-start" class="fi" style="width:100%" onchange="rsClearPreview()">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">リセット期間 終了日 <span style="color:#ef4444">*</span></label>
+                <input type="date" id="rs-end" class="fi" style="width:100%" onchange="rsClearPreview()">
+              </div>
+            </div>
+
+            <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">削除する仕訳の取込元</div>
+            <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:13px;margin-bottom:10px">
+              <label style="display:flex;align-items:center;gap:5px"><input type="checkbox" id="rs-src-pdf" checked onchange="rsClearPreview()">銀行明細PDFの取込分</label>
+              <label data-feature="credit_card" style="display:flex;align-items:center;gap:5px"><input type="checkbox" id="rs-src-csv" onchange="rsClearPreview()">クレカ明細CSVの取込分</label>
+              <label style="display:flex;align-items:center;gap:5px"><input type="checkbox" id="rs-src-manual" onchange="rsClearPreview()">手動追加の仕訳</label>
+            </div>
+            <div style="font-size:13px;margin-bottom:12px">
+              <label style="display:flex;align-items:center;gap:5px"><input type="checkbox" id="rs-clear-dates" checked onchange="rsClearPreview()">取込済みカレンダーも「未取込」に戻す（再アップロードできるようにする）</label>
+            </div>
+
+            <button class="btn bp bsm" onclick="rsPreview()"><span class="ei" data-i="search"></span>対象を確認</button>
+            <div id="rs-preview" style="margin-top:12px"></div>
+
+            <div style="border-top:1px solid var(--bd);margin:16px 0 10px"></div>
+            <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">リセット履歴</div>
+            <div id="rs-history" style="font-size:12px;color:var(--mu)">-</div>
+          </div>
+
+          <!-- クレジットカード明細CSVアップロード -->
+          <div class="card" data-feature="credit_card">
+            <div class="ct"><span class="ei" data-i="card"></span>クレジットカード明細CSVアップロード</div>
+            <p style="font-size:12px;color:var(--mu);margin-bottom:12px">
+              三井住友カード法人カードの利用明細CSV（Shift-JIS形式）をアップロードします。<br>
+              銀行PDFの振替「ｸﾚｼﾞｯﾄ ﾐﾂｲｽﾐﾄﾓｶ-ﾄﾞ」の内訳明細として自動仕訳されます。
+            </p>
+            <div style="margin-bottom:14px">
+              <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:6px">
+                <span class="ei" data-i="card"></span>引き落とし日 <span style="color:#ef4444">*</span>
+                <span style="font-weight:400;color:var(--mu);margin-left:6px">銀行PDFに記載の振替日（カード利用日ではありません）</span>
+              </label>
+              <input type="month" id="csv-payment-date" class="fi" style="width:200px">
+            </div>
+            <div class="drop" id="credit-drop" onclick="document.getElementById('csvin').click()" style="margin-top:4px">
+              <div style="font-size:36px;margin-bottom:8px"><span class="ei" data-i="chart"></span></div>
+              <div style="font-weight:600">クリックまたはドラッグ＆ドロップ</div>
+              <div style="font-size:12px;color:var(--mu);margin-top:4px">.csv ファイル（Shift-JIS）</div>
+            </div>
+            <input type="file" id="csvin" accept=".csv" style="display:none" onchange="upCreditCsv(this)">
+            <div id="csvres" style="margin-top:12px"></div>
+            <div id="csv-tx-preview" style="margin-top:12px"></div>
+          </div>
+        </div>
+
+        <div class="page" id="page-rules">
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <div class="ct" style="margin-bottom:0"><span class="ei" data-i="bolt"></span>自動仕訳ルール</div>
+              <button class="btn bp bsm" onclick="addRule()">+ ルール追加</button>
+            </div>
+            <p style="font-size:12px;color:var(--mu);margin-bottom:4px">
+              ドラッグで優先順位変更。摘要変数: <code>{$取引月}</code> <code>{$取引年}</code> <code>{$相手先}</code> <code>{$苗字}</code> <code>{$利用日}</code> <code>{$行き先}</code>（交通費申請）
+            </p>
+            <div id="rlist" style="margin-top:10px"></div>
+            <button class="btn bp" style="margin-top:10px" onclick="saveRules()"><span class="ei" data-i="save"></span>保存して適用</button>
+          </div>
+        </div>
+
+        <!-- クレカ仕訳ルールページ -->
+        <div class="page" id="page-credit-rules">
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <div class="ct" style="margin-bottom:0"><span class="ei" data-i="card"></span>クレカ仕訳ルール</div>
+              <button class="btn bp bsm" onclick="addCreditRule()">+ ルール追加</button>
+            </div>
+            <p style="font-size:12px;color:var(--mu);margin-bottom:4px">
+              クレジットカード明細CSVの加盟店名で借方科目を自動設定します。貸方は常に<strong>普通預金</strong>（設定の「銀行口座の補助科目」付き）が設定されます。
+            </p>
+            <div id="credit-rlist" style="margin-top:10px"></div>
+            <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+              <button class="btn bp" onclick="saveCreditRules()"><span class="ei" data-i="save"></span>保存</button>
+              <button class="btn" style="background:#1a56db;color:#fff" onclick="applyCreditRules()"><span class="ei" data-i="bolt"></span>適用（未仕訳に一括適用）</button>
+            </div>
+          </div>
+
+          <!-- 未仕訳クレカ明細プレビュー -->
+          <div class="card">
+            <div class="ct"><span class="ei" data-i="clipboard"></span>クレカ明細の仕訳状況</div>
+            <div id="credit-entry-list" style="margin-top:4px">
+              <p style="color:var(--mu);font-size:13px">「適用」ボタンを押すと結果が更新されます</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="page" id="page-accounts">
+          <div class="tabs">
+            <button class="tab active" onclick="atab('income')" id="tab-income">収益（収入）</button>
+            <button class="tab" onclick="atab('expense')" id="tab-expense">費用（支出）</button>
+            <button class="tab" onclick="atab('assets')" id="tab-assets">資産</button>
+            <button class="tab" onclick="atab('liabilities')" id="tab-liabilities">負債</button>
+            <button class="tab" onclick="atab('equity')" id="tab-equity">純資産</button>
+          </div>
+          <div class="card">
+            <p style="font-size:11px;color:var(--mu);margin-bottom:8px" id="ac-type-hint"></p>
+            <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+              <button class="btn bp bsm" onclick="addAc()">+ 科目追加</button>
+            </div>
+            <div id="actree"></div>
+            <button class="btn bp" style="margin-top:10px" onclick="saveAcs()"><span class="ei" data-i="save"></span>保存</button>
+          </div>
+        </div>
+
+        <div class="page" id="page-settings">
+          <div class="card">
+            <div class="ct"><span class="ei" data-i="gear"></span>基本設定</div>
+            <div class="sr"><label>団体名</label><input id="s-club" type="text" placeholder="例: ○○大学 テニスサークル / 株式会社○○"></div>
+            <div class="sr"><label>会計年度開始月</label>
+              <select id="s-fys"><option value="1">1月</option><option value="2">2月</option><option value="3">3月</option><option value="4">4月</option><option value="5">5月</option><option value="6">6月</option><option value="7">7月</option><option value="8">8月</option><option value="9">9月</option><option value="10">10月</option><option value="11">11月</option><option value="12">12月</option></select>
+            </div>
+            <div class="sr"><label>銀行口座の補助科目<br><span style="font-size:11px;color:var(--mu);font-weight:400">明細の取込で普通預金に付ける</span></label>
+              <input id="s-bank-sub" type="text" placeholder="例: 三井住友銀行（空なら付けない）">
+            </div>
+            <div class="sr" data-feature="billing"><label>振込確認猶予日数</label>
+              <input id="s-grace-days" type="number" min="0" placeholder="例: 7" style="width:100px">
+              <span style="font-size:12px;color:var(--mu);margin-left:8px">※振込期限からの猶予日数</span>
+            </div>
+            <button class="btn bp" onclick="saveSt()"><span class="ei" data-i="save"></span>保存</button>
+          </div>
+
+          <div class="card">
+            <div class="ct"><span class="ei" data-i="grid"></span>使う機能</div>
+            <p style="font-size:12px;color:var(--mu);margin-bottom:12px;line-height:1.7">使わない機能は切っておくと、メニュー・設定・AIアシスタントのツールから消えます。データは消えないので、あとから戻せます。</p>
+            <div id="feature-list" style="display:grid;gap:8px"></div>
+            <button class="btn bp" style="margin-top:12px" onclick="saveFeatures()"><span class="ei" data-i="save"></span>保存</button>
+          </div>
+
+          <div class="card">
+            <div class="ct"><span class="ei" data-i="lock"></span>ログイン方法</div>
+            <p style="font-size:12px;color:var(--mu);margin-bottom:12px;line-height:1.7">
+              使うログイン方法を選びます（複数可）。どの方法でも、<strong>ユーザー管理に登録したメールアドレス</strong>で権限を判定します。<br>
+              Slack・Google に切り替える前に、自分のメールアドレスでログインできることを確かめてから、パスワードログインを切ってください。
+            </p>
+            <label class="feat-row"><input type="checkbox" id="lm-password"> <span><strong>メールアドレスとパスワード</strong><br><span class="feat-sub">ユーザー管理で各ユーザーにパスワードを設定します。外部サービスの準備はいりません。</span></span></label>
+            <label class="feat-row"><input type="checkbox" id="lm-slack" onchange="renderLoginConf()"> <span><strong>Slack でログイン</strong><br><span class="feat-sub">Sign in with Slack（OpenID Connect）。Slack ワークスペースを使っている団体向け。</span></span></label>
+            <div id="lm-slack-conf" style="display:none;margin:4px 0 12px 26px;padding:10px 12px;background:#f8fafc;border:1px solid var(--bd);border-radius:8px">
+              <div style="font-size:12px;color:var(--mu);margin-bottom:10px;line-height:1.7">
+                <a href="https://api.slack.com/apps" target="_blank" rel="noopener" style="color:#2563eb">api.slack.com/apps</a> でアプリを作り、OpenID Connect のスコープ（openid・profile・email）と次の Redirect URL を登録してください。<br>
+                Redirect URL: <code id="slack-redirect-url" class="redir"></code>
+                <button type="button" onclick="copyText('slack-redirect-url')" class="copy-btn">コピー</button>
+              </div>
+              <div class="sr"><label>Client ID</label>
+                <input id="s-slack-client-id" type="text" placeholder="000000000000.000000000000" style="flex:1;min-width:0;font-family:monospace">
+              </div>
+              <div class="sr"><label>Client Secret</label>
+                <input id="s-slack-client-secret" type="password" autocomplete="off" placeholder="未登録" style="flex:1;min-width:0;font-family:monospace">
+              </div>
+            </div>
+            <label class="feat-row"><input type="checkbox" id="lm-google" onchange="renderLoginConf()"> <span><strong>Google でログイン</strong><br><span class="feat-sub">Google アカウント（Gmail・Google Workspace）。</span></span></label>
+            <div id="lm-google-conf" style="display:none;margin:4px 0 12px 26px;padding:10px 12px;background:#f8fafc;border:1px solid var(--bd);border-radius:8px">
+              <div style="font-size:12px;color:var(--mu);margin-bottom:10px;line-height:1.7">
+                <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener" style="color:#2563eb">Google Cloud Console</a> で「OAuth クライアント ID（ウェブ アプリケーション）」を作り、次の承認済みリダイレクト URI を登録してください。<br>
+                リダイレクト URI: <code id="google-redirect-url" class="redir"></code>
+                <button type="button" onclick="copyText('google-redirect-url')" class="copy-btn">コピー</button>
+              </div>
+              <div class="sr"><label>Client ID</label>
+                <input id="s-google-client-id" type="text" placeholder="xxxx.apps.googleusercontent.com" style="flex:1;min-width:0;font-family:monospace">
+              </div>
+              <div class="sr"><label>Client Secret</label>
+                <input id="s-google-client-secret" type="password" autocomplete="off" placeholder="未登録" style="flex:1;min-width:0;font-family:monospace">
+              </div>
+            </div>
+            <button class="btn bp" style="margin-top:8px" onclick="saveLoginMethods()"><span class="ei" data-i="save"></span>保存</button>
+          </div>
+
+          <div class="card">
+            <div class="ct"><span class="ei" data-i="clipboard"></span>決算書の別表</div>
+            <p style="font-size:12px;color:var(--mu);margin-bottom:12px;line-height:1.7">決算書の下に、選んだ勘定科目だけの収支表を付けます（例: 合宿収入・合宿支出だけの「合宿収支表」）。科目を選ばなければ出しません。</p>
+            <div class="sr"><label>表の名前</label><input id="s-sub-title" type="text" placeholder="例: 合宿収支表" style="flex:1;min-width:0"></div>
+            <div class="sr" style="align-items:flex-start"><label>含める勘定科目</label><div id="s-sub-accounts" style="flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px"></div></div>
+            <button class="btn bp" onclick="saveSubReport()"><span class="ei" data-i="save"></span>保存</button>
+          </div>
+
+          <div class="card" data-feature="invoice">
+            <div class="ct"><span class="ei" data-i="mail"></span>請求書の差出人</div>
+            <p style="font-size:12px;color:var(--mu);margin-bottom:12px">新しく請求書・見積書を作るときの差出人と備考（振込先など）の初期値です。書類ごとに変えることもできます。</p>
+            <div class="sr"><label>差出人名</label><input id="s-inv-from-name" type="text" placeholder="空欄なら団体名" style="flex:1;min-width:0"></div>
+            <div class="sr"><label>郵便番号</label><input id="s-inv-from-zip" type="text" placeholder="〒000-0000" style="width:140px"></div>
+            <div class="sr"><label>住所</label><input id="s-inv-from-addr" type="text" style="flex:1;min-width:0"></div>
+            <div class="sr"><label>電話番号</label><input id="s-inv-from-tel" type="text" style="width:180px"></div>
+            <div class="sr" style="align-items:flex-start"><label>備考（振込先など）</label><textarea id="s-inv-notes" rows="3" placeholder="例: ○○銀行 ○○支店 普通 1234567&#10;口座名義 ﾏﾙﾏﾙｻｰｸﾙ" style="flex:1;min-width:0;font-family:inherit"></textarea></div>
+            <div class="sr"><label>角印（任意）<br><span style="font-size:11px;color:var(--mu);font-weight:400">PNG/JPEG、300KBまで</span></label>
+              <img id="s-inv-seal-img" alt="" style="width:48px;height:48px;object-fit:contain;border:1px dashed var(--bd);border-radius:4px;display:none">
+              <input id="s-inv-seal" type="file" accept="image/png,image/jpeg" onchange="pickInvSeal(this)">
+              <button type="button" class="btn bs bsm" onclick="clearInvSeal()">削除</button>
+            </div>
+            <button class="btn bp" onclick="saveInvoiceSettings()"><span class="ei" data-i="save"></span>保存</button>
+          </div>
+
+          <div class="card" data-feature="billing">
+            <div class="ct"><span class="ei" data-i="yen"></span>会費の種類</div>
+            <p style="font-size:12px;color:var(--mu);margin-bottom:12px;line-height:1.7">メンバー名簿で会費の金額を入れたとき、自動で入る摘要の一覧です。「金額 摘要」を1行ずつ書きます。同じ金額があれば上の行が優先されます。</p>
+            <textarea id="s-fee-presets" rows="4" placeholder="3000 一般会費&#10;1500 学生会費&#10;1000 休会中会費" style="width:100%;font-family:inherit"></textarea>
+            <button class="btn bp" style="margin-top:8px" onclick="saveFeePresets()"><span class="ei" data-i="save"></span>保存</button>
+          </div>
+
+          <div class="card" data-feature="claims">
+            <div class="ct"><span class="ei" data-i="train"></span>申請フォーム連携</div>
+            <p style="font-size:12px;color:var(--mu);margin-bottom:12px;line-height:1.7">外部の申請フォーム（Slack ボットなど）から交通費・立替の申請を受け付けるときの共有トークンです。フォーム側はリクエストの <code>X-Internal-Token</code> ヘッダーにこの値を付けて <code>POST /api/claims</code> を呼びます（詳しくは README）。</p>
+            <div class="sr"><label>内部トークン</label>
+              <input id="s-internal-token" type="password" autocomplete="off" placeholder="未設定だと外部からの申請を受け付けません" style="flex:1;min-width:0">
+              <button type="button" class="btn bs bsm" onclick="genInternalToken()">生成</button>
+            </div>
+            <button class="btn bp" onclick="saveSt()"><span class="ei" data-i="save"></span>保存</button>
+          </div>
+          <div class="card" id="tazuna-integration" data-feature="ai">
+            <div class="ct"><span class="ei" data-i="spark"></span>AIアシスタント連携</div>
+            <div class="sr"><label>Claude APIキー<br><span style="font-size:11px;color:var(--mu);font-weight:400"><a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener" style="color:#2563eb">Claude Console</a> で発行</span></label>
+              <input id="ai-key" type="password" autocomplete="off" class="fi" placeholder="sk-ant-..." style="flex:1;min-width:0;font-family:monospace">
+              <span id="ai-key-state" style="font-size:12px;color:var(--mu)"></span>
+            </div>
+            <div class="sr"><label>1人1日の回数の上限<br><span style="font-size:11px;color:var(--mu);font-weight:400">使いすぎ防止。0 で無制限</span></label>
+              <span style="font-size:13px">閲覧専用</span><input id="ai-limit-viewer" type="number" min="0" class="fi" style="width:80px"><span style="font-size:13px">回</span>
+              <span style="font-size:13px;margin-left:10px">管理者</span><input id="ai-limit-admin" type="number" min="0" class="fi" style="width:80px"><span style="font-size:13px">回</span>
+            </div>
+            <div data-feature="ai_slack">
+            <div style="border-top:1px solid var(--bd);margin:16px 0 14px"></div>
+            <div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:6px"><span class="ei" data-i="chat"></span>Slack 連携</div>
+            <div style="font-size:12px;color:var(--mu);margin-bottom:12px">経費の連絡チャンネル（備品購入・遠征の連絡など）を読んで、カード明細の目的を摘要に入れます（読むだけで、Slack には書き込みません）。Slack アプリに channels:history・channels:read・groups:history・groups:read・users:read の権限を付け、Bot トークン（xoxb-）を貼ってください。非公開チャンネルはボットを招待してください。</div>
+            <div class="sr"><label>Slack Bot Token<br><span style="font-size:11px;color:var(--mu);font-weight:400"><a href="https://api.slack.com/apps" target="_blank" rel="noopener" style="color:#2563eb">Slack アプリ</a> の xoxb-</span></label>
+              <input id="ai-slack-token" type="password" autocomplete="off" class="fi" placeholder="xoxb-..." style="flex:1;min-width:0;font-family:monospace">
+              <span id="ai-slack-state" style="font-size:12px;color:var(--mu)"></span>
+            </div>
+            <div class="sr" style="align-items:flex-start"><label>参照するチャンネル<br><span style="font-size:11px;color:var(--mu);font-weight:400">1行に1つ。「名前 チャンネルID」か「#チャンネル名」</span></label>
+              <textarea id="ai-slack-channels" class="fi" rows="2" placeholder="#備品購入" style="flex:1;min-width:0;font-family:inherit"></textarea>
+            </div>
+            <div class="sr"><label></label>
+              <button class="btn bs bsm" type="button" onclick="aiSlackTest()">接続テスト</button>
+              <span id="ai-slack-result" style="font-size:12px"></span>
+            </div>
+            </div>
+            <button class="btn bp" onclick="aiSaveIntegrations()"><span class="ei" data-i="save"></span>保存</button>
+          </div>
+          <div class="card">
+            <div class="ct"><span class="ei" data-i="bank"></span>期首残高設定</div>
+            <div id="oblist"></div>
+            <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center" onkeydown="if(event.key==='Enter'){event.preventDefault();addOB();}">
+              <input class="fi" id="ob-yr" type="number" min="1900" placeholder="年度（例: 2024）" style="width:120px">
+              <select class="fi" id="ob-ac" onchange="onObAcChange()" style="width:180px">
+                <option value="">勘定科目を選択</option>
+              </select>
+              <select class="fi" id="ob-sub" style="width:180px;display:none">
+                <option value="">-（補助科目なし）</option>
+              </select>
+              <input class="fi" id="ob-vl" type="number" placeholder="金額（円）" style="width:130px">
+              <button class="btn bp bsm" onclick="addOB()">+ 追加</button>
+            </div>
+            <p style="font-size:11px;color:var(--mu);margin-top:6px">補助科目がある勘定科目を選ぶと補助科目セレクトが表示されます。年度ごとに複数の科目を追加できます。</p>
+            <button class="btn bp" style="margin-top:10px" onclick="saveOB()"><span class="ei" data-i="save"></span>保存</button>
+          </div>
+        </div>
+        <!-- 編集ログページ -->
+        <!-- ユーザー管理ページ（管理者のみ） -->
+        <div class="page" id="page-users">
+          <div class="card">
+            <div class="ct"><span class="ei" data-i="users"></span>ユーザー管理</div>
+            <p style="font-size:12px;color:#64748b;line-height:1.8;margin-bottom:14px">
+              <strong>メールアドレス</strong>で権限を管理します。パスワード・Slack・Google のどの方法でログインしても、メールアドレスで照合します。<br>
+              パスワードでログインする人には、ここでパスワードを設定してください（本人はログイン後に右上の <span class="ei" data-i="key"></span>から変更できます）。
+            </p>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-bottom:16px">
+              <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:8px;padding:10px 12px">
+                <div style="font-size:12px;font-weight:700;color:#7c3aed;margin-bottom:3px">管理者</div>
+                <div style="font-size:11px;color:#64748b;line-height:1.6">仕訳帳・請求・設定など全ページを利用できます。</div>
+              </div>
+              <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:10px 12px">
+                <div style="font-size:12px;font-weight:700;color:#0369a1;margin-bottom:3px">閲覧専用</div>
+                <div style="font-size:11px;color:#64748b;line-height:1.6">決算書ページのみ閲覧・出力できます。データの変更はできません。</div>
+              </div>
+              <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 12px">
+                <div style="font-size:12px;font-weight:700;color:#dc2626;margin-bottom:3px">アクセス不可</div>
+                <div style="font-size:11px;color:#64748b;line-height:1.6">ログイン自体を拒否します。退会者などに設定してください。</div>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px">
+              <label style="font-size:12px;color:#475569;font-weight:600">一覧にないユーザーの扱い</label>
+              <select id="users-default-role" class="fi" style="width:150px">
+                <option value="denied">アクセス不可</option>
+                <option value="viewer">閲覧専用</option>
+              </select>
+              <span style="font-size:11px;color:#94a3b8">Slack・Google でログインした、一覧にない人の扱いです。Slack・Google のログインは関係のない人も通れるので、通常は「アクセス不可」にしてください。</span>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+              <div id="users-summary" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button class="btn bs bsm" onclick="loadUsers()"><span class="ei" data-i="refresh"></span>再読み込み</button>
+                <button class="btn bp bsm" onclick="addUserRow()">＋ ユーザーを追加</button>
+                <button class="btn bg bsm" onclick="saveUsers()"><span class="ei" data-i="save"></span>保存</button>
+              </div>
+            </div>
+
+            <div id="users-list">
+              <p style="color:#94a3b8;text-align:center;padding:20px">読み込み中...</p>
+            </div>
+
+            <p style="font-size:11px;color:#94a3b8;margin-top:12px;line-height:1.7">
+              ※ 管理者は最低1人必要です。また、自分自身の権限は変更・削除できません（誤って締め出さないための保護です）。<br>
+              ※ 権限の変更は再ログインなしで反映されます。
+            </p>
+          </div>
+        </div>
+
+        <div class="page" id="page-logs">
+          <div class="card">
+            <div class="ct"><span class="ei" data-i="clipboard"></span>編集ログ</div>
+            <p style="font-size:12px;color:#64748b;margin-bottom:12px">
+              だれが、いつ、何を変えたか（ログインを含む）が記録されます。
+            </p>
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+              <input id="log-search" type="text" class="fi" placeholder="ユーザー・操作で検索" oninput="filterLogs()" style="min-width:180px;flex:1">
+              <select id="log-action-filter" class="fi" onchange="filterLogs()" style="width:110px">
+                <option value="">全操作</option>
+                <option value="ログイン">ログイン</option>
+                <option value="ログアウト">ログアウト</option>
+                <option value="作成">作成</option>
+                <option value="更新">更新</option>
+                <option value="削除">削除</option>
+              </select>
+              <button class="btn bp bsm" onclick="loadLogs()"><span class="ei" data-i="refresh"></span>再読み込み</button>
+            </div>
+            <div id="log-list" style="font-size:12px">
+              <p style="color:#94a3b8;text-align:center;padding:20px">読み込み中...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 交通費・立替申請ページ -->
+        <div class="page" id="page-claims">
+          <div class="tabs" id="cl-tabs">
+            <button class="tab active" onclick="clTab('list')" id="cltab-list"><span class="ei" data-i="clipboard"></span>申請一覧</button>
+            <button class="tab" onclick="clTab('settings')" id="cltab-settings"><span class="ei" data-i="gear"></span>設定</button>
+          </div>
+
+          <!-- 申請一覧 -->
+          <div id="cl-list-pane">
+            <div class="card">
+              <div class="fls" style="margin-bottom:10px">
+                <select class="fi" id="cl-filter-type" onchange="renderClaims()" style="width:120px">
+                  <option value="">全種別</option>
+                  <option value="transport">交通費</option>
+                  <option value="advance">立替</option>
+                </select>
+                <select class="fi" id="cl-filter-status" onchange="renderClaims()" style="width:110px">
+                  <option value="">全状態</option>
+                  <option value="pending">未承認</option>
+                  <option value="approved">承認済</option>
+                  <option value="paid">返金済</option>
+                  <option value="rejected">却下</option>
+                </select>
+                <input class="fi" id="cl-filter-name" placeholder="申請者名" oninput="renderClaims()" style="width:140px">
+              </div>
+              <div id="cl-list"></div>
+            </div>
+          </div>
+
+
+          <!-- 設定 -->
+          <div id="cl-settings-pane" style="display:none">
+            <div class="card" style="max-width:540px">
+              <div class="ct">申請・返金設定</div>
+              <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:12px 14px;margin:14px 0;font-size:12px;line-height:1.8;color:#1e40af">
+                <div style="font-weight:700;margin-bottom:6px"><span class="ei" data-i="bolt"></span>自動マッチング仕組み</div>
+                返金処理時、<strong>返金日±1日</strong>の期間に記録済み・またはPDFアップロード済みの仕訳から<br>
+                <strong>申請金額と一致</strong>し、摘要・相手先に<strong>申請者の半角カナ</strong>を含むものを自動で特定します。<br>
+                見つかった仕訳の科目が未設定の場合のみ、下の設定を使って補完します。
+              </div>
+              <div style="font-size:12px;font-weight:700;color:#64748b;margin-bottom:10px">仕訳未マッチ時のフォールバック科目</div>
+              <div class="sr"><label>交通費: 借方科目</label>
+                <select id="cl-tr-debit" class="fi" style="width:180px" onchange="clUpdSub('cl-tr-debit','cl-tr-debit-sub')"></select>
+                <select id="cl-tr-debit-sub" class="fi" style="width:150px;margin-left:4px"></select>
+              </div>
+              <div class="sr"><label>立替: 借方科目</label>
+                <select id="cl-ad-debit" class="fi" style="width:180px" onchange="clUpdSub('cl-ad-debit','cl-ad-debit-sub')"></select>
+                <select id="cl-ad-debit-sub" class="fi" style="width:150px;margin-left:4px"></select>
+              </div>
+              <div class="sr"><label>返金: 貸方科目</label>
+                <select id="cl-cr-credit" class="fi" style="width:180px" onchange="clUpdSub('cl-cr-credit','cl-cr-credit-sub')"></select>
+                <select id="cl-cr-credit-sub" class="fi" style="width:150px;margin-left:4px"></select>
+              </div>
+              <button class="btn bp" onclick="saveClSettings()"><span class="ei" data-i="save"></span>保存</button>
+            </div>
+
+            <!-- 交通費 月次締め切り管理 -->
+            <div class="card" style="max-width:540px;margin-top:14px">
+              <div class="ct"><span class="ei" data-i="lock"></span>交通費申請 月次締め切り</div>
+              <p style="font-size:12px;color:#64748b;margin-bottom:14px;line-height:1.6">
+                締め切った月の利用日の交通費は、申請フォームから申請できなくなります。<br>
+                解除するには再度クリックしてください。
+              </p>
+              <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+                <input type="month" id="deadline-month-input" class="fi" style="width:160px">
+                <button class="btn bp" onclick="toggleDeadline()">締め切り切替</button>
+              </div>
+              <div id="deadline-list" style="display:flex;flex-wrap:wrap;gap:8px;min-height:32px">
+                <span style="font-size:12px;color:#94a3b8">読み込み中...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 各ページの内容 (ここまで) -->
+
+    </div>
+</div>
+</div> <!-- .layout end -->
+
+<!-- モーダル類 -->
+<div class="ov" id="detov">
+  <div class="modal">
+    <div class="mhd">
+      <h3 id="mtitle">内訳</h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="mcl" onclick="closeM()">✕</button>
+      </div>
+    </div>
+    <div class="mbd" id="mbody"></div>
+  </div>
+</div>
+<div class="ov" id="addov">
+  <div class="modal" style="max-width:1040px">
+    <div class="mhd">
+      <h3 id="addtitle">仕訳を追加</h3>
+      <button class="mcl" onclick="closeAdd()">✕</button>
+    </div>
+    <div class="mbd">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+        <div>
+          <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">取引日</label>
+          <input type="date" id="add-date" class="fi" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">種別</label>
+          <select id="add-dir" class="fi" style="width:100%">
+            <option value="out">出金</option>
+            <option value="in">入金</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">相手先</label>
+          <input type="text" id="add-party" class="fi" style="width:100%" placeholder="相手先名">
+        </div>
+      </div>
+      <div style="overflow-x:auto;margin-bottom:10px">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead>
+            <tr style="background:#f8fafc">
+              <th style="padding:7px 8px;text-align:left;border-bottom:1px solid #e2e8f0;white-space:nowrap">借方科目</th>
+              <th style="padding:7px 8px;text-align:left;border-bottom:1px solid #e2e8f0;white-space:nowrap">借方補助</th>
+              <th style="padding:7px 8px;text-align:left;border-bottom:1px solid #e2e8f0;white-space:nowrap">貸方科目</th>
+              <th style="padding:7px 8px;text-align:left;border-bottom:1px solid #e2e8f0;white-space:nowrap">貸方補助</th>
+              <th style="padding:7px 8px;text-align:right;border-bottom:1px solid #e2e8f0;white-space:nowrap">金額</th>
+              <th style="padding:7px 8px;text-align:left;border-bottom:1px solid #e2e8f0;width:100%;min-width:240px">摘要</th>
+              <th style="padding:7px 8px;border-bottom:1px solid #e2e8f0"></th>
+            </tr>
+          </thead>
+          <tbody id="add-entries"></tbody>
+        </table>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <button onclick="addEntryRow()" style="background:none;border:1.5px dashed #cbd5e1;border-radius:7px;padding:5px 14px;font-size:12px;color:#64748b;cursor:pointer">＋ 行を追加</button>
+        <span id="add-balance-check" style="font-size:13px;color:#374151"></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f8fafc;border-radius:8px;margin-bottom:14px">
+        <label for="add-status" style="font-size:13px;font-weight:500;color:#374151">状態</label>
+        <select id="add-status" class="fi" style="width:110px">
+          <option value="unreg">未登録</option>
+          <option value="prov">仮登録</option>
+          <option value="reg">登録済</option>
+        </select>
+      </div>
+      <!-- 領収書アップロードエリア -->
+      <div style="margin-bottom:14px">
+        <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:6px"><span class="ei" data-i="clip"></span>領収書</label>
+        <div id="receipt-area" style="border:2px dashed #cbd5e1;border-radius:10px;padding:14px;text-align:center;background:#fafafa;transition:border-color .2s"
+             ondragover="event.preventDefault();this.style.borderColor='#2563eb'"
+             ondragleave="this.style.borderColor='#cbd5e1'"
+             ondrop="receiptDrop(event)">
+          <div id="receipt-placeholder">
+            <div style="font-size:28px;margin-bottom:4px"><span class="ei" data-i="receipt"></span></div>
+            <div style="font-size:12px;color:#64748b;margin-bottom:8px">JPEG / PNG / WebP / PDF（最大10MB）</div>
+            <label style="display:inline-block;cursor:pointer;background:#2563eb;color:#fff;border-radius:7px;padding:6px 16px;font-size:12px;font-weight:600">
+              ファイルを選択
+              <input type="file" id="receipt-input" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
+                     style="display:none" onchange="receiptSelected(this)">
+            </label>
+            <div style="font-size:11px;color:#94a3b8;margin-top:6px">またはここにドラッグ&ドロップ</div>
+          </div>
+          <div id="receipt-preview" style="display:none">
+            <img id="receipt-img" src="" alt="領収書" style="max-height:160px;max-width:100%;border-radius:6px;margin-bottom:8px;display:none">
+            <div id="receipt-pdf-icon" style="font-size:40px;margin-bottom:4px;display:none"><span class="ei" data-i="file"></span></div>
+            <div id="receipt-filename" style="font-size:12px;font-weight:600;color:#1e293b;margin-bottom:6px"></div>
+            <div style="display:flex;gap:6px;justify-content:center">
+              <a id="receipt-view-link" href="#" target="_blank" style="font-size:12px;color:#2563eb;text-decoration:underline">開く</a>
+              <span style="color:#cbd5e1">|</span>
+              <button onclick="receiptClear()" style="background:none;border:none;font-size:12px;color:#dc2626;cursor:pointer;padding:0"><span class="ei" data-i="trash"></span>削除</button>
+            </div>
+          </div>
+          <div id="receipt-uploading" style="display:none;font-size:12px;color:#64748b">
+            <div style="font-size:24px;margin-bottom:4px"><span class="ei" data-i="hourglass"></span></div>アップロード中...
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn bp" onclick="submitAdd()"><span class="ei" data-i="save"></span>保存する</button>
+        <button class="btn" onclick="closeAdd()">キャンセル</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="ov" id="invov">
+  <div class="modal" style="max-width:680px">
+    <div class="mhd">
+      <h3 id="inv-title">請求書を作成</h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn bs bsm" onclick="downloadInvPDF()"><span class="ei" data-i="file"></span>PDFダウンロード</button>
+        <button class="mcl" onclick="closeInv()">✕</button>
+      </div>
+    </div>
+    <div class="mbd">
+      <!-- 請求書プレビュー風フォーム -->
+      <div style="background:#f8fafc;border:1px solid var(--bd);border-radius:10px;padding:14px 16px;margin-bottom:10px">
+        <!-- ヘッダー -->
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1e293b;padding-bottom:8px;margin-bottom:10px">
+          <div>
+            <select id="inv-doctype" onchange="updInvDocType()" title="書類の種類を選択"
+              style="font-size:22px;font-weight:800;letter-spacing:0.05em;color:#1e293b;border:1px dashed #cbd5e1;border-radius:6px;padding:1px 6px;background:#fff;cursor:pointer">
+              <option value="請求書">請 求 書</option>
+              <option value="見積書">見 積 書</option>
+            </select>
+            <div id="inv-doctype-en" style="font-size:12px;color:#64748b;margin-top:4px">INVOICE</div>
+          </div>
+          <div style="text-align:right;font-size:12px;color:#475569">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+              <span style="color:#94a3b8">No.</span>
+              <input type="text" id="inv-no" placeholder="0001" style="border:1px solid var(--bd);border-radius:4px;padding:3px 8px;font-size:12px;width:80px;font-family:monospace;text-align:center">
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+              <span style="color:#94a3b8;white-space:nowrap">発行日</span>
+              <input type="date" id="inv-issued" style="border:1px solid var(--bd);border-radius:4px;padding:3px 6px;font-size:12px">
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span id="inv-due-label" style="color:#94a3b8;white-space:nowrap">支払期限</span>
+              <input type="date" id="inv-due" style="border:1px solid var(--bd);border-radius:4px;padding:3px 6px;font-size:12px">
+            </div>
+          </div>
+        </div>
+        <!-- 宛先 ＆ 発行者（左右レイアウト） -->
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-top:24px;margin-bottom:14px">
+          <!-- 左：宛先 -->
+          <div style="flex:1">
+            <div style="font-size:11px;color:#94a3b8;margin-bottom:3px;font-weight:600">宛先</div>
+            <input type="text" id="inv-client" placeholder="宛先を入力" style="border:1px solid var(--bd);border-radius:6px;padding:6px 10px;font-size:13px;width:100%;font-weight:600;box-sizing:border-box">
+          </div>
+          <!-- 右：発行者（少し下にずらす） -->
+          <div style="width:200px;margin-top:40px;padding:8px 10px;background:#f1f5f9;border-radius:8px;border:1px solid var(--bd)">
+            <div style="font-size:11px;color:#94a3b8;margin-bottom:4px;font-weight:600">発行者</div>
+            <input type="text" id="inv-from-name" style="border:1px solid var(--bd);border-radius:5px;padding:4px 8px;font-size:12px;width:100%;font-weight:600;box-sizing:border-box;margin-bottom:4px">
+            <input type="text" id="inv-from-zip" placeholder="〒" style="border:1px solid var(--bd);border-radius:5px;padding:4px 8px;font-size:11px;width:100%;box-sizing:border-box;margin-bottom:3px">
+            <input type="text" id="inv-from-addr" style="border:1px solid var(--bd);border-radius:5px;padding:4px 8px;font-size:11px;width:100%;box-sizing:border-box;margin-bottom:3px">
+            <input type="text" id="inv-from-tel" placeholder="TEL" style="border:1px solid var(--bd);border-radius:5px;padding:4px 8px;font-size:11px;width:100%;box-sizing:border-box">
+          </div>
+        </div>
+        <!-- 明細 -->
+        <div style="margin-top:16px;margin-bottom:8px">
+          <div style="font-size:11px;color:#94a3b8;margin-bottom:5px;font-weight:600">明細</div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead>
+              <tr style="background:#1e293b;color:#fff">
+                <th style="padding:7px 10px;text-align:left;border-radius:4px 0 0 0">品目・内容</th>
+                <th style="padding:7px 10px;text-align:right;width:60px">数量</th>
+                <th style="padding:7px 10px;text-align:right;width:90px">単価</th>
+                <th style="padding:7px 10px;text-align:right;width:90px;border-radius:0 4px 0 0">金額</th>
+                <th style="padding:7px 4px;width:24px;background:transparent"></th>
+              </tr>
+            </thead>
+            <tbody id="inv-items"></tbody>
+          </table>
+          <button onclick="addInvItem()" style="margin-top:6px;font-size:11px;color:var(--p);background:none;border:1px dashed var(--p);border-radius:4px;padding:4px 12px;cursor:pointer;width:100%">＋ 行を追加</button>
+        </div>
+        <!-- 合計エリア -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;justify-content:flex-end">
+          <label style="font-size:12px;color:#64748b">消費税</label>
+          <select id="inv-tax" onchange="calcInvTotal()" style="border:1px solid var(--bd);border-radius:4px;padding:4px 6px;font-size:12px">
+            <option value="0">なし</option>
+            <option value="10">10%</option>
+            <option value="8">8%（軽減税率）</option>
+          </select>
+        </div>
+        <div id="inv-total-area" style="background:#fff;border:1px solid var(--bd);border-radius:8px;padding:12px 16px;text-align:right;font-size:13px"></div>
+        <!-- 備考 -->
+        <div style="margin-top:8px">
+          <div style="font-size:11px;color:#94a3b8;margin-bottom:3px;font-weight:600">備考・振込先</div>
+          <textarea id="inv-notes" rows="3" placeholder="振込先: 〇〇銀行 〇〇支店 普通 0000000&#10;口座名義: ○○部" style="border:1px solid var(--bd);border-radius:6px;padding:6px 10px;font-size:12px;width:100%;resize:vertical;box-sizing:border-box;color:#374151;line-height:1.6"></textarea>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn bs" onclick="closeInv()">キャンセル</button>
+        <button class="btn bp" onclick="saveInv()"><span class="ei" data-i="save"></span>保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="ov" id="bl-detail-ov">
+  <div class="modal" style="max-width:800px">
+    <div class="mhd">
+      <h3 id="bl-detail-title">振込確認結果</h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="mcl" onclick="document.getElementById('bl-detail-ov').classList.remove('open')">✕</button>
+      </div>
+    </div>
+    <div class="mbd" id="bl-detail-body"></div>
+  </div>
+</div>
+
+<div class="ov" id="bl-edit-ov">
+  <div class="modal" style="max-width:600px">
+    <div class="mhd">
+      <h3 id="bl-edit-title">請求シート編集</h3>
+      <button class="mcl" onclick="closeBlEdit()">✕</button>
+    </div>
+    <div class="mbd">
+      <div style="margin-bottom:14px">
+        <label style="font-size:12px;font-weight:600;color:var(--mu)">振込期限</label>
+        <input type="date" id="bl-edit-due" class="fi" style="margin-top:4px;width:180px;padding:6px 10px;font-size:13px">
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>氏名</th><th style="text-align:right">請求額</th><th>摘要</th></tr></thead>
+          <tbody id="bl-edit-members"></tbody>
+        </table>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+        <button class="btn bs" onclick="closeBlEdit()">キャンセル</button>
+        <button class="btn bp" onclick="saveBlEdit()"><span class="ei" data-i="save"></span>保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="memberov">
+  <div class="modal" style="max-width:440px">
+    <div class="mhd"><h3>メンバー追加</h3><button class="mcl" onclick="document.getElementById('memberov').classList.remove('open')">✕</button></div>
+    <div class="mbd">
+      <div class="fg">
+        <div><label>氏名</label><input type="text" id="mb-name"></div>
+        <div><label>振込名義（半角カナ）</label><input type="text" id="mb-kana"></div>
+        <div><label>区分</label><input id="mb-type" list="mb-type-list" placeholder="例: 一般・学生・OB"><datalist id="mb-type-list"><option value="一般"><option value="学生"><option value="社会人"><option value="OB・OG"></datalist></div>
+        <div><label>デフォ貸方補助</label><select id="mb-def-sub" class="fi" style="width:100%"></select></div>
+        <div><label>会費（円）</label><input type="number" id="mb-fee" min="0" oninput="document.getElementById('mb-tekiyo').innerHTML=tekiyoOptions(getDefaultTekiyo(parseInt(this.value)||0))"></div>
+        <div><label>デフォルト摘要</label><select id="mb-tekiyo" class="fi" style="width:100%"></select></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end">
+        <button class="btn bs" onclick="document.getElementById('memberov').classList.remove('open')">キャンセル</button>
+        <button class="btn bp" onclick="submitAddMember()">追加</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<!-- JS分割読み込み -->
+<!-- どのページでも右下に出す、AIアシスタントを開く丸いボタン（管理者・閲覧専用どちらも。AIアシスタントの画面では出さない）。
+     スマホでは左上の × で隠せる（端末ごとに覚える。AIアシスタントの画面の下の行から戻せる） -->
+<div class="tz-fab-wrap" id="tz-fab-wrap" data-feature="ai">
+  <button class="tz-fab" id="tz-fab" onclick="aiToggleFloat()" title="AIアシスタントに質問" aria-label="AIアシスタントに質問">
+    <span class="pony" id="tz-fab-pony"></span>
+    <svg class="x" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+  </button>
+  <button class="tz-fab-hide" onclick="aiSetFabHidden(true)" title="このボタンを隠す" aria-label="右下のボタンを隠す">×</button>
+</div>
+<script src="static/js/globals.js?v=20261107"></script>
+<script src="static/js/journal.js?v=20261107"></script>
+<script src="static/js/reports.js?v=20261107"></script>
+<script src="static/js/billing.js?v=20261107"></script>
+<script src="static/js/settings.js?v=20261107"></script>
+<script src="static/js/claims.js?v=20261107"></script>
+<script src="static/js/users.js?v=20261107"></script>
+<script src="static/js/ai-bg.js?v=20261107"></script>
+<script src="static/js/ai.js?v=20261107"></script>
+<script src="static/js/main.js?v=20261107"></script>
+
+
+<!-- エクスポート選択ダイアログ -->
+<div id="exp-dialog" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:12px;padding:28px 32px;min-width:300px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="font-size:15px;font-weight:700;margin-bottom:20px" id="exp-dialog-title">エクスポート形式を選択</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn bg" style="padding:12px;font-size:14px;display:flex;align-items:center;gap:10px;justify-content:center" onclick="doExportExcel()">
+        <span style="font-size:20px"><span class="ei" data-i="chart"></span></span> Excel (.xlsx)
+      </button>
+      <button class="btn bp" style="padding:12px;font-size:14px;display:flex;align-items:center;gap:10px;justify-content:center" onclick="doExportPDF()">
+        <span style="font-size:20px"><span class="ei" data-i="file"></span></span> PDF (.pdf)
+      </button>
+      <button class="btn bs" style="padding:8px;font-size:13px" onclick="closeExportDialog()">キャンセル</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>

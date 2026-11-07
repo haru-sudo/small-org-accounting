@@ -1,0 +1,91 @@
+# SSH + rsync でサーバー（レンタルサーバーなど）へ反映する。
+#
+# 使うときだけ、リポジトリの Settings → Secrets and variables → Actions に次を登録する。
+# 登録していなければ main へ push しても何もしない（フォークしただけで失敗しないように）。
+#   Secrets:   DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY
+#   Variables: DEPLOY_PATH（例: /home/xxxx/example.com/public_html/accounting）
+#              DEPLOY_PORT（任意。既定 22。Xserver は 10022）
+#
+# - 変更判定は内容（チェックサム）で行う。
+# - .gitignore に書かれたファイル（data/・uploads/ など）は転送せず、サーバー上のものを残す。
+#   （例外: vendor/ は Actions 上で composer install したものを転送する）
+# - それ以外で GitHub に存在しないファイルはサーバーから削除される（--delete）。
+# - Actions タブから手動実行（dry_run=true）すると、何が変わるかだけを確認できる。
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "変更内容の確認のみ（サーバーは変更しない）"
+        type: boolean
+        default: true
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ vars.DEPLOY_PATH != '' }}
+    runs-on: ubuntu-latest
+    env:
+      HOST: ${{ secrets.DEPLOY_HOST }}
+      SSH_USER: ${{ secrets.DEPLOY_USER }}
+      PORT: ${{ vars.DEPLOY_PORT || '22' }}
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Claude API の SDK など Composer の依存を入れる（vendor/ はリポジトリに含めない）
+      - name: Install Composer dependencies
+        run: composer install --no-dev --no-interaction --no-progress --prefer-dist --optimize-autoloader
+
+      - name: Check settings
+        run: |
+          for v in HOST SSH_USER DEPLOY_PATH; do
+            if [ -z "${!v}" ]; then echo "::error::$v が未設定です"; exit 1; fi
+          done
+          case "$DEPLOY_PATH" in
+            /*/?*) ;;
+            *) echo "::error::DEPLOY_PATH は絶対パスのサブディレクトリにしてください: $DEPLOY_PATH"; exit 1 ;;
+          esac
+
+      - name: Set up SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # サーバー側で一時的に応答しないことがあるため再試行する
+          for i in 1 2 3 4 5; do
+            if ssh-keyscan -T 15 -p "$PORT" "$HOST" > ~/.ssh/known_hosts 2>/dev/null && [ -s ~/.ssh/known_hosts ]; then
+              exit 0
+            fi
+            echo "ssh-keyscan 失敗（$i 回目）。再試行します"
+            sleep $((i * 5))
+          done
+          echo "::error::$HOST:$PORT のホスト鍵を取得できませんでした"
+          exit 1
+
+      - name: Rsync
+        run: |
+          DRY=""
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.dry_run }}" = "true" ]; then
+            DRY="--dry-run"
+            echo "::notice::dry-run のためサーバーは変更しません"
+          fi
+          rsync -rlpvz --checksum --delete $DRY --itemize-changes \
+            --chmod=D705,F604 \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='.gitignore' \
+            --exclude='/dev/' \
+            --exclude='/demo/' \
+            --include='/vendor/***' \
+            --exclude-from=.gitignore \
+            -e "ssh -i ~/.ssh/deploy_key -p $PORT" \
+            ./ "$SSH_USER@$HOST:${DEPLOY_PATH%/}/"

@@ -1,0 +1,44 @@
+Options -Indexes
+RewriteEngine On
+
+# ★内部ディレクトリへの直接アクセスを拒否する（サブディレクトリに置いても効くよう相対パスで書く）
+#   data/     … SQLite（全取引・申請・メンバー名簿）とリセット時のスナップショット
+#   uploads/  … 領収書画像・取込中のPDF（閲覧は /api/receipt/... 経由で認証付き）
+#   core*/    … サーバー側のコード（直接実行させない）
+#   vendor/   … Composer の依存ライブラリ（直接実行させない）
+#   dev/      … 手元で動かすための開発用ファイル
+#   以前は RedirectMatch 403 ^/data/... と書いていたが、アプリが /foo/accounting/ のような
+#   サブディレクトリにあると一致せず、領収書やスナップショット JSON を URL で取得できた。
+RewriteRule ^(data|uploads|core|core_py|vendor|dev)(/|$) - [F,L]
+
+# 秘密情報・作業ファイル（service-account.json、差分ファイル、ドキュメント、シェル）を公開しない
+<FilesMatch "(^service-account\.json$|^composer\.(json|lock)$|\.(py|ini|db|log|sqlite|sqlite3|json|diff|patch|md|sh|bak|orig|swp)$)">
+    Require all denied
+</FilesMatch>
+
+# JS・CSS・HTML は毎回サーバーに更新を確認させる（★軽量化）
+#   以前は no-store で毎回全量（JS だけで約250KB）を取り直していた。
+#   no-cache なら変更が無いときは 304（本文なし）で済み、更新はすぐ反映される。
+<FilesMatch "\.(js|css|html)$">
+    Header set Cache-Control "no-cache"
+</FilesMatch>
+
+# 共通のセキュリティヘッダー
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "same-origin"
+</IfModule>
+
+# APIリクエストを api/router.php へ
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^api/(.*)$ api/router.php [QSA,L]
+
+# ルートは index.html
+RewriteRule ^$ index.html [L]
+
+# AIアシスタントの逐次表示（Server-Sent Events）を圧縮でためこませない
+<IfModule mod_setenvif.c>
+    SetEnvIf Request_URI "/api/ai/(chat|approve)$" no-gzip=1 dont-vary=1
+</IfModule>

@@ -1,0 +1,17 @@
+{
+    "name": "haru-sudo/small-org-accounting",
+    "description": "部活・サークル・小規模団体向けの会計ソフト",
+    "type": "project",
+    "license": "AGPL-3.0-or-later",
+    "require": {
+        "php": ">=8.1",
+        "anthropic-ai/sdk": "^0.59.0",
+        "guzzlehttp/guzzle": "^7.10"
+    },
+    "config": {
+        "platform": { "php": "8.1.0" },
+        "optimize-autoloader": true,
+        "sort-packages": true,
+        "allow-plugins": { "php-http/discovery": false }
+    }
+}

@@ -1,0 +1,36 @@
+name: 機能の要望
+description: あったら便利な機能・改善のアイデア
+title: "[要望] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 困っていること
+      description: いま何がしにくいか（機能の案より先に、困りごとを書いてください）
+      placeholder: 例）毎月同じ会費の請求シートを作るのが手間
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: こうなってほしい
+      placeholder: 例）前月のシートをコピーして作れるボタンがほしい
+    validations:
+      required: true
+  - type: textarea
+    id: who
+    attributes:
+      label: どんな団体・使い方で必要か
+      description: 部活・サークル・会社など。ほかの団体でも役に立ちそうかの判断に使います
+  - type: textarea
+    id: alt
+    attributes:
+      label: いまの回避策・ほかの案
+  - type: checkboxes
+    id: check
+    attributes:
+      label: 確認
+      options:
+        - label: 同じ内容の Issue がないか検索しました
+          required: true

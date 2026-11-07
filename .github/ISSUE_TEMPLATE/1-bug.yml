@@ -1,0 +1,65 @@
+name: 不具合の報告
+description: 動かない・表示がおかしい・計算が合わないなど
+title: "[不具合] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        報告ありがとうございます。
+        **口座番号・名前・メールアドレス・金額などの個人情報や団体の情報は書かないでください。** スクリーンショットも、該当部分を塗りつぶしてから貼ってください。
+  - type: textarea
+    id: what
+    attributes:
+      label: 何が起きたか
+      description: どの画面で、何をしたら、どうなったか
+      placeholder: 例）仕訳帳で「一括登録」を押したら、エラーが出て登録されなかった
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 本来どうなってほしいか
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現する手順
+      placeholder: |
+        1. 〇〇を開く
+        2. 〇〇を押す
+        3. エラーが出る
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: どこで起きたか
+      options:
+        - 自分のサーバーに置いたもの
+        - 手元（php -S）で動かしたもの
+        - デモページ（GitHub Pages）
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: 環境
+      description: ブラウザ・OS・PHP のバージョンなど、わかる範囲で
+      placeholder: 例）Chrome 140 / Windows 11 / PHP 8.2
+  - type: textarea
+    id: log
+    attributes:
+      label: エラーの内容・ログ
+      description: 画面に出たメッセージや、サーバーのエラーログ（個人情報は消してください）
+      render: text
+  - type: checkboxes
+    id: check
+    attributes:
+      label: 確認
+      options:
+        - label: 個人情報・団体の情報が含まれていないことを確認しました
+          required: true
+        - label: 同じ内容の Issue がないか検索しました
+          required: true

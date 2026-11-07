@@ -1,0 +1,46 @@
+name: 銀行・カードの明細への対応の要望
+description: 三井住友銀行（Value Door）・三井住友カード以外の明細を取り込みたい
+title: "[明細形式] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **本物の明細ファイルは添付しないでください。** 口座番号・名前・取引先・金額は、すべて架空のものに書き換えた「見本」だけを貼ってください。
+  - type: input
+    id: bank
+    attributes:
+      label: 銀行・カード会社とサービス名
+      placeholder: 例）〇〇銀行 法人インターネットバンキング
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: ファイルの種類
+      options:
+        - PDF
+        - CSV
+        - そのほか
+    validations:
+      required: true
+  - type: textarea
+    id: sample
+    attributes:
+      label: 見本（架空のデータに書き換えたもの）
+      description: CSV なら見出し行と2〜3行、PDF なら表の列の並び（日付・摘要・出金・入金・残高 など）
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: how
+    attributes:
+      label: ファイルの出し方
+      description: どの画面のどのボタンでダウンロードするか
+  - type: checkboxes
+    id: check
+    attributes:
+      label: 確認
+      options:
+        - label: 本物の口座番号・名前・取引先・金額が含まれていないことを確認しました
+          required: true

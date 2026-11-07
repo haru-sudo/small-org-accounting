@@ -1,0 +1,6 @@
+# 空の Issue は作れないようにし、テンプレートから選んでもらう
+blank_issues_enabled: false
+contact_links:
+  - name: セキュリティの問題（脆弱性）の報告
+    url: https://github.com/haru-sudo/small-org-accounting/security/advisories/new
+    about: 脆弱性は公開の Issue ではなく、こちらから非公開で報告してください。
