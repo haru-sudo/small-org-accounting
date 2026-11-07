@@ -307,14 +307,15 @@ function _isAutoGenRule(r){
 let _hiddenRules = []; // 自動生成ルールの保持用
 async function loadRu(){
   const d=await api('GET','/rules');
-  const all = JSON.parse(JSON.stringify(d.rules||[]));
+  // 適用される順（優先度の高い順）に並べて見せる。保存時は並び順から優先度を振り直す
+  const all = JSON.parse(JSON.stringify(d.rules||[])).sort((a,b)=>(b.priority||0)-(a.priority||0));
   _hiddenRules = all.filter(_isAutoGenRule);
   editRu = all.filter(r => !_isAutoGenRule(r));
   rRu();
 }
 function rRu(){
   document.getElementById('rlist').innerHTML=editRu.map((r,i)=>`
-  <div class="ri" draggable="true" data-i="${i}"
+  <div class="ri" draggable="true" data-idx="${i}"
     ondragstart="dS(event,${i})" ondragover="dO(event)" ondrop="dD(event,${i})" ondragleave="dL(event)">
     <div style="display:flex;align-items:center;gap:8px">
       <span style="cursor:grab;color:var(--mu);font-size:18px;user-select:none">⠿</span>
@@ -877,7 +878,7 @@ async function loadCreditRules() {
 
 function rCreditRu() {
   document.getElementById('credit-rlist').innerHTML = editCreditRu.map((r, i) => `
-  <div class="ri" draggable="true" data-i="${i}"
+  <div class="ri" draggable="true" data-idx="${i}"
     ondragstart="crDS(event,${i})" ondragover="dO(event)" ondrop="crDD(event,${i})" ondragleave="dL(event)">
     <div style="display:flex;align-items:center;gap:8px">
       <span style="cursor:grab;color:var(--mu);font-size:18px;user-select:none">⠿</span>

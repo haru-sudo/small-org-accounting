@@ -565,7 +565,9 @@ async function execJournalClaim(id) {
     const ruleType = c.type === 'transport' ? '交通費' : '立替';
     const ruleName = claimAutoRuleLabel(c);
     // 既存ルールと重複チェック
-    const existingRules = allRu || [];
+    // 画面を開いたときの allRu は古いことがある（AIアシスタント等で後から増えたルールを消さないよう読み直す）
+    let existingRules;
+    try { existingRules = (await api('GET', '/rules')).rules || []; } catch (e) { existingRules = allRu || []; }
     const alreadyExists = existingRules.some(r =>
       r.pattern === kana && parseInt(r.exact_amount || 0) === amount
     );

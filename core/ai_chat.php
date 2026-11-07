@@ -807,7 +807,7 @@ function aiExecTool(string $name, array $in, array $user): array {
             $pattern = trim((string)($in['pattern'] ?? ''));
             if ($name === '') return ['error' => 'ルール名が空です'];
             if ($pattern === '') return ['error' => 'pattern が空です（すべての取引に一致してしまいます）'];
-            if (@preg_match('/' . aiNoSpace($pattern) . '/u', '') === false) return ['error' => 'pattern が正規表現として正しくありません'];
+            if (@preg_match(ruleRegex(aiNoSpace($pattern), 'u'), '') === false) return ['error' => 'pattern が正規表現として正しくありません'];
             $err = aiCheckAccount($idx, trim((string)$in['debit_account']), trim((string)($in['debit_sub'] ?? '')), '借方')
                 ?? aiCheckAccount($idx, trim((string)$in['credit_account']), trim((string)($in['credit_sub'] ?? '')), '貸方');
             if ($err) return ['error' => $err];

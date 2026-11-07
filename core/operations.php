@@ -189,7 +189,7 @@ function applyCreditRuleToEntry(array &$e, array $rules): bool {
         if ($pattern !== '') {
             $pNs = ruleKanaFold(preg_replace('/[\s　]/u', '', $pattern));
             $tNs = ruleKanaFold(preg_replace('/[\s　]/u', '', $party));
-            if (@preg_match('/' . $pNs . '/ui', $tNs) !== 1) continue;
+            if (@preg_match(ruleRegex($pNs, 'ui'), $tNs) !== 1) continue;
         }
         // ルールの借方（費用科目）は、返品なら貸方へ入れる
         if (!empty($rule['debit_account'])) {
