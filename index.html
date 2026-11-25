@@ -702,7 +702,7 @@ if (/\.github\.io$/.test(location.hostname)) document.write('<script src="demo/d
             <div data-feature="ai_slack">
             <div style="border-top:1px solid var(--bd);margin:16px 0 14px"></div>
             <div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:6px"><span class="ei" data-i="chat"></span>Slack 連携</div>
-            <div style="font-size:12px;color:var(--mu);margin-bottom:12px">経費の連絡チャンネル（備品購入・遠征の連絡など）を読んで、カード明細の目的を摘要に入れます（読むだけで、Slack には書き込みません）。Slack アプリに channels:history・channels:read・groups:history・groups:read・users:read の権限を付け、Bot トークン（xoxb-）を貼ってください。非公開チャンネルはボットを招待してください。</div>
+            <div style="font-size:12px;color:var(--mu);margin-bottom:12px">経費の連絡チャンネル（備品購入・遠征の連絡など）を読んで、カード明細の目的を摘要に入れます（読むだけで、Slack には書き込みません）。Slack アプリに channels:history・channels:read・groups:history・groups:read・users:read の権限を付け（投稿に貼られたレシートの写真・PDF も読ませるなら files:read も）、Bot トークン（xoxb-）を貼ってください。非公開チャンネルはボットを招待してください。</div>
             <div class="sr"><label>Slack Bot Token<br><span style="font-size:11px;color:var(--mu);font-weight:400"><a href="https://api.slack.com/apps" target="_blank" rel="noopener" style="color:#2563eb">Slack アプリ</a> の xoxb-</span></label>
               <input id="ai-slack-token" type="password" autocomplete="off" class="fi" placeholder="xoxb-..." style="flex:1;min-width:0;font-family:monospace">
               <span id="ai-slack-state" style="font-size:12px;color:var(--mu)"></span>
