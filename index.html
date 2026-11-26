@@ -144,6 +144,7 @@ if (/\.github\.io$/.test(location.hostname)) document.write('<script src="demo/d
                 <button class="btn bg bsm" onclick="bulkReg()">✓ 一括登録</button>
                 <button class="btn bw bsm" onclick="bulkProv()"><span class="ei" data-i="edit"></span>一括仮登録</button>
                 <button class="btn bg bsm" onclick="commitProv()" title="表示中の年度・月の仮登録をすべて登録済みにします">✓ 仮登録を一括登録</button>
+                <button class="btn btn-outline-red bsm" onclick="bulkDel()" title="チェックした取引を削除します（確認が出ます）"><span class="ei" data-i="trash"></span>一括削除</button>
                 <button class="btn bs bsm" onclick="expJ()"><span class="ei" data-i="download"></span>出力</button>
               </div>
               <span id="jcount" style="font-size:12px;color:var(--mu)"></span>
@@ -988,9 +989,32 @@ if (/\.github\.io$/.test(location.hostname)) document.write('<script src="demo/d
           </div>
         </div>
       </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end">
+      <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center">
+        <button class="btn btn-outline-red" id="add-del-btn" onclick="openDelTx([editingTxId])" style="display:none;margin-right:auto"><span class="ei" data-i="trash"></span>この仕訳を削除</button>
         <button class="btn bp" onclick="submitAdd()"><span class="ei" data-i="save"></span>保存する</button>
         <button class="btn" onclick="closeAdd()">キャンセル</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- 仕訳の削除の確認（いきなり消さず、内容と影響を見せてから消す） -->
+<div class="ov" id="delov" onclick="if(event.target===this)closeDelTx()">
+  <div class="modal" style="max-width:520px" role="alertdialog" aria-modal="true" aria-labelledby="del-title">
+    <div class="mhd">
+      <h3 id="del-title" style="color:var(--ex)"><span class="ei" data-i="trash"></span>仕訳を削除しますか？</h3>
+      <button class="mcl" onclick="closeDelTx()" aria-label="閉じる">✕</button>
+    </div>
+    <div class="mbd">
+      <div id="del-list" class="del-list"></div>
+      <div id="del-warn"></div>
+      <label id="del-ack-row" class="del-ack" style="display:none">
+        <input type="checkbox" id="del-ack" onchange="delAckChanged()">
+        <span id="del-ack-text"></span>
+      </label>
+      <p style="font-size:12px;color:var(--mu);margin:10px 0 14px">削除した直後なら、画面下の「元に戻す」で取り消せます。</p>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn bs" id="del-cancel" onclick="closeDelTx()">キャンセル</button>
+        <button class="btn bd2" id="del-ok" onclick="doDelTx()"><span class="ei" data-i="trash"></span><span id="del-ok-text">削除する</span></button>
       </div>
     </div>
   </div>

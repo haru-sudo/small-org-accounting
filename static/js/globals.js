@@ -325,12 +325,24 @@ function toastIcon(c){
   if(['#1a56db','#2563eb'].includes(k)) return 'bolt';
   return '';
 }
+let _toastTimer=null;
 function toast(msg,c='#1e293b'){
   const t=document.getElementById('toast');
   const ic=toastIcon(c);
   t.innerHTML=(ic?`<span class="ei toast-ic">${iconSvg(ic)}</span>`:'')+escHtml(msg);
   t.style.background=c;
-  t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);
+  clearTimeout(_toastTimer);
+  t.classList.add('show');_toastTimer=setTimeout(()=>t.classList.remove('show'),3000);
+}
+// ボタンつきの通知（「元に戻す」など）。ms のあいだ出しておく。ボタンを押すと閉じて onAct を呼ぶ
+function toastAction(msg,label,onAct,c='#1e293b',ms=10000){
+  toast(msg,c);
+  const t=document.getElementById('toast');
+  const b=document.createElement('button');
+  b.className='toast-act';b.textContent=label;
+  b.onclick=()=>{clearTimeout(_toastTimer);t.classList.remove('show');onAct();};
+  t.appendChild(b);
+  clearTimeout(_toastTimer);_toastTimer=setTimeout(()=>t.classList.remove('show'),ms);
 }
 
 function dlB(blob,name){

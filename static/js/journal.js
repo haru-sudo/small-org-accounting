@@ -389,6 +389,132 @@ async function commitProv(){
   toast(`仮登録 ${ok}件を登録済みにしました`+(skip?`（科目未設定のため${skip}件スキップ）`:''),'#059669');
 }
 
+// ── 仕訳の削除 ────────────────────────────────────────────────────────────
+// いきなり消さず、確認のポップアップで「何が消えるか」「どこに響くか」を見せる。
+// 登録済み（決算書に入っている）を含むときは、チェックを入れるまで削除ボタンを押せない。
+// 消したあとは通知の「元に戻す」で、消した取引をそのまま作り直せる。
+let _delIds=[];
+const DEL_SHOW_MAX=8;
+
+function bulkDel(){
+  const ids=[...document.querySelectorAll('.rc:checked')].map(c=>c.dataset.id);
+  if(!ids.length){toast('削除する取引にチェックを入れてください','#f59e0b');return;}
+  openDelTx(ids);
+}
+
+function openDelTx(ids){
+  const txs=(ids||[]).map(id=>allTx.find(t=>t.id===id)).filter(Boolean);
+  if(!txs.length) return;
+  _delIds=txs.map(t=>t.id);
+  const n=txs.length;
+  document.getElementById('del-title').innerHTML=`<span class="ei" data-i="trash"></span>${n>1?`${n}件の仕訳を削除しますか？`:'この仕訳を削除しますか？'}`;
+  document.getElementById('del-ok-text').textContent=n>1?`${n}件を削除する`:'削除する';
+
+  // 消える取引の一覧
+  const badge={reg:'✓ 登録済',prov:'仮登録',unreg:'未登録'};
+  let h=txs.slice(0,DEL_SHOW_MAX).map(tx=>{
+    const amt=Math.max(tx.debit||0,tx.credit||0,tx.bank_debit||0,tx.bank_credit||0,tx.amount||0,
+      ...((tx.entries||[]).map(e=>parseInt(e.amount||0))));
+    const e0=(tx.entries||[])[0]||{};
+    const acc=[e0.debit_account,e0.credit_account].filter(Boolean).join(' / ');
+    const memo=e0.memo||tx.memo||'';
+    return `<div class="del-item">
+      <span style="font-weight:600">${escHtml(tx.date||'')}</span>
+      ${tx.party?`<span>${escHtml(tx.party)}</span>`:''}
+      <span style="font-size:11px;color:var(--mu)">${badge[txStatus(tx)]}</span>
+      <span class="del-amt">¥${Number(amt||0).toLocaleString()}</span>
+      ${acc||memo?`<span class="del-sub">${escHtml([acc,memo].filter(Boolean).join('　'))}</span>`:''}
+    </div>`;
+  }).join('');
+  if(n>DEL_SHOW_MAX) h+=`<div class="del-more">ほか ${n-DEL_SHOW_MAX} 件</div>`;
+  document.getElementById('del-list').innerHTML=h;
+
+  // 影響の説明
+  const reg=txs.filter(t=>txStatus(t)==='reg').length;
+  const claim=txs.filter(t=>t.claim_id).length;
+  const sheet=txs.filter(t=>t.billing_sheet_id).length;
+  const rcpt=txs.filter(t=>t.receipt_file).length;
+  const bank=txs.filter(t=>t.source_file&&t.source_file!=='手動入力').length;
+  const w=[];
+  if(reg) w.push(['',`登録済みの仕訳が${n>1?` ${reg}件`:''}含まれています。削除すると決算書の数字が変わります。`]);
+  if(claim) w.push(['mild',`交通費・立替の申請から作った仕訳が${n>1?` ${claim}件`:''}あります。申請は「仕訳済み」のまま残ります。`]);
+  if(sheet) w.push(['mild',`会費の振込確認から作った仕訳が${n>1?` ${sheet}件`:''}あります。振込確認の表はそのまま残ります。`]);
+  if(bank) w.push(['mild',`銀行・カードの明細から取り込んだ取引が${n>1?` ${bank}件`:''}あります。削除すると、通帳と帳簿の残高が合わなくなることがあります。`]);
+  if(rcpt) w.push(['mild',`領収書が付いた取引が${n>1?` ${rcpt}件`:''}あります。仕訳と一緒に画面から見えなくなります。`]);
+  document.getElementById('del-warn').innerHTML=w.map(([cls,t])=>`<div class="del-warn ${cls}"><span class="ei" data-i="alert"></span>${escHtml(t)}</div>`).join('');
+
+  // 登録済みを含むときは、もうひと手間（チェック）を挟む
+  const ackRow=document.getElementById('del-ack-row'), ack=document.getElementById('del-ack');
+  ack.checked=false;
+  ackRow.style.display=reg?'flex':'none';
+  document.getElementById('del-ack-text').textContent=reg?'決算書の数字が変わることをわかったうえで削除します':'';
+  delAckChanged();
+
+  const ok=document.getElementById('del-ok');
+  ok.dataset.busy='';
+  document.getElementById('delov').classList.add('open');
+  // 誤って Enter で消さないよう、最初はキャンセルにフォーカスを置く
+  setTimeout(()=>document.getElementById('del-cancel').focus(),0);
+}
+
+function delAckChanged(){
+  const needAck=document.getElementById('del-ack-row').style.display!=='none';
+  document.getElementById('del-ok').disabled=needAck&&!document.getElementById('del-ack').checked;
+}
+
+function closeDelTx(){
+  document.getElementById('delov').classList.remove('open');
+  _delIds=[];
+}
+
+async function doDelTx(){
+  const ok=document.getElementById('del-ok');
+  if(ok.disabled||ok.dataset.busy) return;
+  ok.dataset.busy='1';ok.disabled=true;
+  const ids=[..._delIds];
+  const removed=[];let failed=0;
+  for(const id of ids){
+    const tx=allTx.find(t=>t.id===id);if(!tx)continue;
+    try{
+      const r=await api('DELETE','/transactions/'+encodeURIComponent(id),{_skipLog:true});
+      if(r&&r.error) throw new Error(r.error);
+      removed.push(tx);
+    }catch(e){failed++;}
+  }
+  const gone=new Set(removed.map(t=>t.id));
+  allTx=allTx.filter(t=>!gone.has(t.id));
+  if(removed.length){
+    logChange('削除','/transactions', removed.length===1
+      ? `${_txLabel(removed[0])} を削除しました`
+      : `${removed.length}件の取引を削除しました（${removed.slice(0,5).map(_txLabel).join('、')}${removed.length>5?' ほか':''}）`);
+  }
+  ok.dataset.busy='';
+  closeDelTx();
+  // 編集画面から消したときは編集画面も閉じる
+  if(editingTxId&&gone.has(editingTxId)) closeAdd();
+  popFy();fjKeepPage();loadDash();
+  if(failed){toast(`${failed}件を削除できませんでした`,'#dc2626');return;}
+  toastAction(`${removed.length}件の仕訳を削除しました`,'元に戻す',()=>undoDelTx(removed),'#1e293b',10000);
+}
+
+// 削除の取り消し：消した取引を同じ ID・同じ中身で作り直す
+async function undoDelTx(txs){
+  let ok=0;
+  for(const tx of txs){
+    try{
+      const r=await api('POST','/transactions',{...tx,_skipLog:true});
+      if(r&&r.transaction){allTx.push(r.transaction);ok++;}
+    }catch(e){}
+  }
+  if(ok) logChange('作成','/transactions', ok===1 ? `${_txLabel(txs[0])} の削除を取り消しました` : `${ok}件の取引の削除を取り消しました`);
+  popFy();fjKeepPage();loadDash();
+  toast(ok===txs.length?`${ok}件を元に戻しました`:`${ok}/${txs.length}件だけ元に戻せました`, ok===txs.length?'#059669':'#f59e0b');
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&document.getElementById('delov')?.classList.contains('open')){e.stopPropagation();closeDelTx();}
+});
+
 async function expJ(){
   showExportDialog('仕訳帳のエクスポート',
     async()=>{
@@ -460,6 +586,7 @@ function openAddTx(){
   document.getElementById('add-dir').value='out';
   document.getElementById('add-party').value='';
   document.getElementById('add-status').value='unreg';
+  document.getElementById('add-del-btn').style.display='none';
   renderEntryRows();
   document.getElementById('addov').classList.add('open');
 }
@@ -473,6 +600,7 @@ function editTx(id){
   document.getElementById('add-dir').value=txDirection(tx)||'out';
   document.getElementById('add-party').value=tx.party||'';
   document.getElementById('add-status').value=txStatus(tx);
+  document.getElementById('add-del-btn').style.display='';
   renderEntryRows();
   receiptReset();
   if(tx.receipt_file){
